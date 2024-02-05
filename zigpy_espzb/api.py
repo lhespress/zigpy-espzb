@@ -15,21 +15,11 @@ else:
     from asyncio import timeout as asyncio_timeout  # pragma: no cover
 
 from zigpy.config import CONF_DEVICE_PATH
-from zigpy.types import (
-    AddrModeAddress,
-    APSStatus,
-    Bool,
-    Channels,
-    DeviceAddrMode,
-    KeyData,
-    SerializableBytes,
-    Struct,
-    ZigbeePacket,
-)
+import zigpy.types as t
 from zigpy.zdo.types import SimpleDescriptor
 
 from zigpy_espzb.exception import APIException, CommandError, MismatchedResponseError
-import zigpy_espzb.types as t
+from zigpy_espzb.types import Bytes, DeviceAddrMode, ZnspTransmitOptions, list_replace
 import zigpy_espzb.uart
 
 LOGGER = logging.getLogger(__name__)
@@ -91,9 +81,9 @@ class ZDPResponseHandling(t.bitmap16):
     NodeDescRsp = 0x0001
 
 
-class FormNetwork(Struct):
+class FormNetwork(t.Struct):
     role: DeviceType
-    policy: Bool
+    policy: t.Bool
     nwk_cfg0: t.uint8_t
     nwk_cfg1: t.uint32_t
 
@@ -143,24 +133,24 @@ class TXStatus(t.enum8):
 
     @classmethod
     def _missing_(cls, value):
-        chained = APSStatus(value)
+        chained = t.APSStatus(value)
         status = t.uint8_t.__new__(cls, chained.value)
         status._name_ = chained.name
         status._value_ = value
         return status
 
 
-class IndexedKey(Struct):
+class IndexedKey(t.Struct):
     index: t.uint8_t
-    key: KeyData
+    key: t.KeyData
 
 
-class LinkKey(Struct):
+class LinkKey(t.Struct):
     ieee: t.EUI64
-    key: KeyData
+    key: t.KeyData
 
 
-class IndexedEndpoint(Struct):
+class IndexedEndpoint(t.Struct):
     index: t.uint8_t
     descriptor: SimpleDescriptor
 
@@ -169,11 +159,11 @@ class UpdateNeighborAction(t.enum8):
     ADD = 0x01
 
 
-class Command(Struct):
+class Command(t.Struct):
     flags: t.uint16_t
     command_id: CommandId
     seq: t.uint8_t
-    payload: t.Bytes
+    payload: Bytes
 
 
 COMMAND_SCHEMAS = {
@@ -190,7 +180,7 @@ COMMAND_SCHEMAS = {
     CommandId.start: (
         {
             "payload_length": PAYLOAD_LENGTH,
-            "autostart": Bool,
+            "autostart": t.Bool,
         },
         {
             "payload_length": t.uint16_t,
@@ -311,7 +301,7 @@ COMMAND_SCHEMAS = {
         {},
     ),
     CommandId.channel_mask_set: (
-        {"payload_length": PAYLOAD_LENGTH, "channel_mask": Channels},
+        {"payload_length": PAYLOAD_LENGTH, "channel_mask": t.Channels},
         {
             "payload_length": t.uint16_t,
             "status": Status,
@@ -367,7 +357,7 @@ COMMAND_SCHEMAS = {
             "profile_id": t.uint16_t,
             "cluster_id": t.uint16_t,
             "tx_options": t.uint8_t,
-            "use_alias": Bool,
+            "use_alias": t.Bool,
             "src_addr": t.EUI64,
             "sequence": t.uint8_t,
             "radius": t.uint8_t,
@@ -455,11 +445,11 @@ COMMAND_SCHEMAS = {
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {"payload_length": t.uint16_t, "nwk_key": KeyData},
+        {"payload_length": t.uint16_t, "nwk_key": t.KeyData},
         {},
     ),
     CommandId.network_key_set: (
-        {"payload_length": PAYLOAD_LENGTH, "nwk_key": KeyData},
+        {"payload_length": PAYLOAD_LENGTH, "nwk_key": t.KeyData},
         {
             "payload_length": t.uint16_t,
             "status": Status,
@@ -497,7 +487,7 @@ COMMAND_SCHEMAS = {
         {},
     ),
     CommandId.use_predefined_nwk_panid_set: (
-        {"payload_length": PAYLOAD_LENGTH, "predefined": Bool},
+        {"payload_length": PAYLOAD_LENGTH, "predefined": t.Bool},
         {
             "payload_length": t.uint16_t,
             "status": Status,
@@ -542,7 +532,7 @@ COMMAND_SCHEMAS = {
         {},
     ),
     CommandId.link_key_set: (
-        {"payload_length": PAYLOAD_LENGTH, "link_key": KeyData},
+        {"payload_length": PAYLOAD_LENGTH, "link_key": t.KeyData},
         {
             "payload_length": t.uint16_t,
             "status": Status,
@@ -675,7 +665,7 @@ class Znsp:
             payload.append(value)
 
         if PAYLOAD_LENGTH in payload:
-            payload = t.list_replace(
+            payload = list_replace(
                 lst=payload,
                 old=PAYLOAD_LENGTH,
                 new=t.uint16_t(
@@ -829,13 +819,13 @@ class Znsp:
 
             if rsp["device_state"] == NetworkState.INDICATION:
                 self._app.packet_received(
-                    ZigbeePacket(
-                        src=AddrModeAddress(
+                    t.ZigbeePacket(
+                        src=t.AddrModeAddress(
                             addr_mode=rsp["src_addr_mode"],
                             address=rsp["src_addr"],
                         ),
                         src_ep=rsp["src_ep"],
-                        dst=AddrModeAddress(
+                        dst=t.AddrModeAddress(
                             addr_mode=rsp["dst_addr_mode"],
                             address=rsp["dst_addr"],
                         ),
@@ -843,7 +833,7 @@ class Znsp:
                         tsn=None,
                         profile_id=rsp["profile_id"],
                         cluster_id=rsp["cluster_id"],
-                        data=SerializableBytes(rsp["asdu"]),
+                        data=t.SerializableBytes(rsp["asdu"]),
                         lqi=rsp["lqi"],
                         rssi=rsp["rssi"],
                     )
@@ -901,7 +891,7 @@ class Znsp:
 
         return rssult
 
-    async def set_channel_mask(self, parameter: Channels):
+    async def set_channel_mask(self, parameter: t.Channels):
         rsp = await self.send_command(
             CommandId.channel_mask_set, channel_mask=parameter
         )
@@ -1066,7 +1056,7 @@ class Znsp:
 
         return rsp["status"]
 
-    async def set_use_predefined_nwk_panid(self, parameter: Bool):
+    async def set_use_predefined_nwk_panid(self, parameter: t.Bool):
         rsp = await self.send_command(
             CommandId.use_predefined_nwk_panid_set,
             predefined=parameter,
@@ -1126,7 +1116,7 @@ class Znsp:
         addr_mode: DeviceAddrMode,
         cluster: t.uint16_t,
         sequence: t.uint16_t,
-        options: t.ZnspTransmitOptions,
+        options: ZnspTransmitOptions,
         radius: t.uint16_t,
         data: bytes,
         relays: list[int] | None = None,
