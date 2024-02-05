@@ -16,6 +16,7 @@ else:
 
 from zigpy.config import CONF_DEVICE_PATH
 from zigpy.types import (
+    AddrModeAddress,
     APSStatus,
     Bool,
     Channels,
@@ -23,7 +24,6 @@ from zigpy.types import (
     SerializableBytes,
     Struct,
     ZigbeePacket,
-    AddrModeAddress,
 )
 from zigpy.zdo.types import SimpleDescriptor
 
@@ -40,10 +40,12 @@ REQUEST_RETRY_DELAYS = (0.5, 1.0, 1.5, None)
 FRAME_LENGTH = object()
 PAYLOAD_LENGTH = object()
 
+
 class DeviceType(t.enum8):
     COORDINATOR = 0
     ROUTER = 1
     ED = 2
+
 
 class Status(t.enum8):
     SUCCESS = 0
@@ -55,22 +57,26 @@ class Status(t.enum8):
     NO_NETWORK = 6
     BUSY = 7
 
+
 class FirmwareVersion(t.Struct, t.uint32_t):
     reserved: t.uint8_t
     patch: t.uint8_t
     minor: t.uint8_t
     major: t.uint8_t
 
+
 class NetworkState(t.enum8):
     OFFLINE = 0
     JOINING = 1
     CONNECTED = 2
     LEAVING = 3
-    CONFIRM = 4,
-    INDICATION = 5,
+    CONFIRM = (4,)
+    INDICATION = (5,)
+
 
 class DeviceState(t.Struct):
     network_state: NetworkState
+
 
 class SecurityMode(t.enum8):
     NO_SECURITY = 0x00
@@ -82,6 +88,7 @@ class SecurityMode(t.enum8):
 class ZDPResponseHandling(t.bitmap16):
     NONE = 0x0000
     NodeDescRsp = 0x0001
+
 
 class FormNetwork(Struct):
     role: DeviceType
@@ -141,6 +148,7 @@ class TXStatus(t.enum8):
         status._value_ = value
         return status
 
+
 class IndexedKey(Struct):
     index: t.uint8_t
     key: KeyData
@@ -159,6 +167,7 @@ class IndexedEndpoint(Struct):
 class UpdateNeighborAction(t.enum8):
     ADD = 0x01
 
+
 class Command(Struct):
     flags: t.uint16_t
     command_id: CommandId
@@ -175,9 +184,7 @@ COMMAND_SCHEMAS = {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.start: (
         {
@@ -188,9 +195,7 @@ COMMAND_SCHEMAS = {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.form_network: (
         {
@@ -226,151 +231,91 @@ COMMAND_SCHEMAS = {
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "ieee": t.EUI64
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "ieee": t.EUI64},
+        {},
     ),
     CommandId.extpanid_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "ieee": t.EUI64
-        },
+        {"payload_length": PAYLOAD_LENGTH, "ieee": t.EUI64},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.panid_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "panid": t.uint16_t
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "panid": t.uint16_t},
+        {},
     ),
     CommandId.panid_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "panid": t.PanId
-        },
+        {"payload_length": PAYLOAD_LENGTH, "panid": t.PanId},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.short_addr_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "short_addr": t.uint16_t
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "short_addr": t.uint16_t},
+        {},
     ),
     CommandId.short_addr_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "short_addr": t.uint16_t
-        },
+        {"payload_length": PAYLOAD_LENGTH, "short_addr": t.uint16_t},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.long_addr_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "ieee": t.EUI64
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "ieee": t.EUI64},
+        {},
     ),
     CommandId.long_addr_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "ieee": t.EUI64
-        },
+        {"payload_length": PAYLOAD_LENGTH, "ieee": t.EUI64},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.current_channel_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "channel": t.uint8_t
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "channel": t.uint8_t},
+        {},
     ),
     CommandId.current_channel_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "channel": t.uint8_t
-        },
+        {"payload_length": PAYLOAD_LENGTH, "channel": t.uint8_t},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.channel_mask_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "channel_mask": t.uint32_t
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "channel_mask": t.uint32_t},
+        {},
     ),
     CommandId.channel_mask_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "channel_mask": Channels
-        },
+        {"payload_length": PAYLOAD_LENGTH, "channel_mask": Channels},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.addendpoint: (
         {
@@ -388,9 +333,7 @@ COMMAND_SCHEMAS = {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.device_state: (
         {
@@ -400,9 +343,7 @@ COMMAND_SCHEMAS = {
             "payload_length": t.uint16_t,
             "device_state": DeviceState,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.change_network_state: (
         {
@@ -413,9 +354,7 @@ COMMAND_SCHEMAS = {
             "payload_length": t.uint16_t,
             "network_state": t.uint8_t,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.aps_data_request: (
         {
@@ -438,9 +377,7 @@ COMMAND_SCHEMAS = {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.aps_data_indication: (
         {
@@ -517,189 +454,114 @@ COMMAND_SCHEMAS = {
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "nwk_key": KeyData
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "nwk_key": KeyData},
+        {},
     ),
     CommandId.network_key_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "nwk_key": KeyData
-        },
+        {"payload_length": PAYLOAD_LENGTH, "nwk_key": KeyData},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.nwk_frame_counter_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "nwk_frame_counter": t.uint32_t
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "nwk_frame_counter": t.uint32_t},
+        {},
     ),
     CommandId.nwk_frame_counter_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "nwk_frame_counter": t.uint32_t
-        },
+        {"payload_length": PAYLOAD_LENGTH, "nwk_frame_counter": t.uint32_t},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.aps_designed_coordinator_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "role": t.uint8_t
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "role": t.uint8_t},
+        {},
     ),
     CommandId.aps_designed_coordinator_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "role": t.uint8_t
-        },
+        {"payload_length": PAYLOAD_LENGTH, "role": t.uint8_t},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.use_predefined_nwk_panid_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "predefined": Bool
-        },
+        {"payload_length": PAYLOAD_LENGTH, "predefined": Bool},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.nwk_update_id_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "nwk_update_id": t.uint8_t
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "nwk_update_id": t.uint8_t},
+        {},
     ),
     CommandId.nwk_update_id_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "nwk_update_id": t.uint8_t
-        },
+        {"payload_length": PAYLOAD_LENGTH, "nwk_update_id": t.uint8_t},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.trust_center_address_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "trust_center_addr": t.EUI64
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "trust_center_addr": t.EUI64},
+        {},
     ),
     CommandId.trust_center_address_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "trust_center_addr": t.EUI64
-        },
+        {"payload_length": PAYLOAD_LENGTH, "trust_center_addr": t.EUI64},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.link_key_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "link_key": LinkKey
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "link_key": LinkKey},
+        {},
     ),
     CommandId.link_key_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "link_key": KeyData
-        },
+        {"payload_length": PAYLOAD_LENGTH, "link_key": KeyData},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
     CommandId.security_mode_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
-        {
-            "payload_length": t.uint16_t,
-            "security_mode": SecurityMode
-        },
-        {
-
-        },
+        {"payload_length": t.uint16_t, "security_mode": SecurityMode},
+        {},
     ),
     CommandId.security_mode_set: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "security_mode": SecurityMode
-        },
+        {"payload_length": PAYLOAD_LENGTH, "security_mode": SecurityMode},
         {
             "payload_length": t.uint16_t,
             "status": Status,
         },
-        {
-
-        },
+        {},
     ),
 }
 
@@ -906,7 +768,7 @@ class Znsp:
         LOGGER.debug(
             "Received command %s%s (seq %d)", command.command_id, params, command.seq
         )
-        
+
         status = Status.SUCCESS
         if "status" in params:
             status = params["status"]
@@ -968,13 +830,13 @@ class Znsp:
                 self._app.packet_received(
                     ZigbeePacket(
                         src=AddrModeAddress(
-                            addr_mode = rsp["src_addr_mode"],
-                            address = rsp["src_addr"],
+                            addr_mode=rsp["src_addr_mode"],
+                            address=rsp["src_addr"],
                         ),
                         src_ep=rsp["src_ep"],
                         dst=AddrModeAddress(
-                            addr_mode = rsp["dst_addr_mode"],
-                            address = rsp["dst_addr"],
+                            addr_mode=rsp["dst_addr_mode"],
+                            address=rsp["dst_addr"],
                         ),
                         dst_ep=rsp["dst_ep"],
                         tsn=None,
@@ -1019,7 +881,11 @@ class Znsp:
 
     async def network_init(self):
         await self.send_command(CommandId.networkinit)
-        await self.form_network(FormNetwork(role=DeviceType.COORDINATOR, policy=False, nwk_cfg0=0x14, nwk_cfg1=0))
+        await self.form_network(
+            FormNetwork(
+                role=DeviceType.COORDINATOR, policy=False, nwk_cfg0=0x14, nwk_cfg1=0
+            )
+        )
         await self.start(False)
 
         return Status.SUCCESS
@@ -1029,19 +895,18 @@ class Znsp:
         rsp = await self.send_command(CommandId.channel_mask_get)
 
         for index in range(32):
-            if ((rsp["channel_mask"] & (1 << index)) != 0):
+            if (rsp["channel_mask"] & (1 << index)) != 0:
                 rssult.append(index)
 
         return rssult
-    
+
     async def set_channel_mask(self, parameter: Channels):
         rsp = await self.send_command(
-            CommandId.channel_mask_set, 
-            channel_mask=parameter
+            CommandId.channel_mask_set, channel_mask=parameter
         )
 
         return rsp["status"]
-    
+
     async def form_network(self, parameter: FormNetwork):
         rsp = await self.send_command(
             CommandId.form_network,
@@ -1049,12 +914,9 @@ class Znsp:
         )
 
         return rsp["status"]
-    
+
     async def start(self, parameter: t.uint8_t):
-        rsp = await self.send_command(
-            CommandId.start, 
-            autostart=parameter
-        )
+        rsp = await self.send_command(CommandId.start, autostart=parameter)
 
         return rsp["status"]
 
@@ -1072,15 +934,12 @@ class Znsp:
         rsp = await self.send_command(CommandId.short_addr_get)
 
         return rsp["short_addr"]
-    
+
     async def set_nwk_address(self, parameter: t.uint16_t):
-        rsp = await self.send_command(
-            CommandId.short_addr_set, 
-            short_addr=parameter
-        )
+        rsp = await self.send_command(CommandId.short_addr_set, short_addr=parameter)
 
         return rsp["status"]
-    
+
     async def nwk_panid(self):
         rsp = await self.send_command(CommandId.panid_get)
 
@@ -1110,11 +969,10 @@ class Znsp:
         rsp = await self.send_command(CommandId.nwk_update_id_get)
 
         return rsp["nwk_update_id"]
-    
+
     async def set_nwk_update_id(self, parameter: t.uint8_t):
         rsp = await self.send_command(
-            CommandId.nwk_update_id_set, 
-            nwk_update_id=parameter
+            CommandId.nwk_update_id_set, nwk_update_id=parameter
         )
 
         return rsp["status"]
@@ -1139,7 +997,7 @@ class Znsp:
     async def set_nwk_frame_counter(self, parameter: t.uint32_t):
         rsp = await self.send_command(
             CommandId.nwk_frame_counter_set,
-            nwk_frame_counter = parameter,
+            nwk_frame_counter=parameter,
         )
 
         return rsp["status"]
@@ -1148,18 +1006,19 @@ class Znsp:
         rsp = await self.send_command(CommandId.trust_center_address_get)
 
         return rsp["trust_center_addr"]
-    
+
     async def set_trust_center_address(self, parameter: t.EUI64):
-        rsp = await self.send_command(CommandId.trust_center_address_set, trust_center_addr=parameter)
+        rsp = await self.send_command(
+            CommandId.trust_center_address_set, trust_center_addr=parameter
+        )
 
         return rsp["status"]
 
-    async def link_key(self, parameter: Any = None
-    ) -> Any:
+    async def link_key(self, parameter: Any = None) -> Any:
         rsp = await self.send_command(CommandId.link_key_get)
 
         return rsp["link_key"]
-    
+
     async def set_link_key(self, parameter: LinkKey):
         rsp = await self.send_command(CommandId.link_key_set, link_key=parameter.key)
 
@@ -1171,7 +1030,9 @@ class Znsp:
         return rsp["security_mode"]
 
     async def set_security_mode(self, parameter: SecurityMode):
-        rsp = await self.send_command(CommandId.security_mode_set, security_mode=parameter)
+        rsp = await self.send_command(
+            CommandId.security_mode_set, security_mode=parameter
+        )
 
         return rsp["status"]
 
@@ -1192,14 +1053,14 @@ class Znsp:
 
         rsp = await self.send_command(
             CommandId.addendpoint,
-            endpoint = endpoint,
-            profileId = profile,
-            deviceId = device_type,
-            appFlags = device_version,
-            inputClusterCount = len(input_clusters),
-            outputClusterCount = len(output_clusters),
-            inputClusterList = t.List(inputClusterList[1:]),
-            outputClusterList = t.List(outputClusterList[1:]),
+            endpoint=endpoint,
+            profileId=profile,
+            deviceId=device_type,
+            appFlags=device_version,
+            inputClusterCount=len(input_clusters),
+            outputClusterCount=len(output_clusters),
+            inputClusterList=t.List(inputClusterList[1:]),
+            outputClusterList=t.List(outputClusterList[1:]),
         )
 
         return rsp["status"]
@@ -1207,7 +1068,7 @@ class Znsp:
     async def set_use_predefined_nwk_panid(self, parameter: Bool):
         rsp = await self.send_command(
             CommandId.use_predefined_nwk_panid_set,
-            predefined = parameter,
+            predefined=parameter,
         )
 
         return rsp["status"]
@@ -1215,15 +1076,15 @@ class Znsp:
     async def set_permit_join(self, parameter: t.uint8_t):
         rsp = await self.send_command(
             CommandId.permit_join_set,
-            role = parameter,
+            role=parameter,
         )
 
         return rsp["status"]
-    
+
     async def set_watchdog_ttl(self, parameter: t.uint16_t):
         rsp = await self.send_command(
             CommandId.watchdog_ttl_set,
-            role = parameter,
+            role=parameter,
         )
 
         return rsp["status"]
@@ -1239,7 +1100,7 @@ class Znsp:
     async def set_aps_designed_coordinator(self, parameter: t.uint8_t):
         rsp = await self.send_command(
             CommandId.aps_designed_coordinator_set,
-            role = parameter,
+            role=parameter,
         )
 
         return rsp["status"]
@@ -1248,7 +1109,7 @@ class Znsp:
         rsp = await self.send_command(CommandId.extpanid_get)
 
         return rsp["ieee"]
-    
+
     async def set_aps_extended_panid(self, parameter: t.ExtendedPanId):
         rsp = await self.send_command(CommandId.extpanid_set, ieee=parameter)
 
@@ -1274,19 +1135,19 @@ class Znsp:
             try:
                 rsp = await self.send_command(
                     CommandId.aps_data_request,
-                    dst_addr = dst_addr,
-                    dst_endpoint = dst_ep,
-                    src_endpoint = src_ep,
-                    address_mode = addr_mode,
-                    profile_id = profile,
-                    cluster_id = cluster,
-                    tx_options = options,
-                    use_alias = False,
-                    src_addr = src_addr,
-                    sequence = sequence,
-                    radius = radius,
-                    asdu_length = len(data),
-                    asdu = t.List(data)
+                    dst_addr=dst_addr,
+                    dst_endpoint=dst_ep,
+                    src_endpoint=src_ep,
+                    address_mode=addr_mode,
+                    profile_id=profile,
+                    cluster_id=cluster,
+                    tx_options=options,
+                    use_alias=False,
+                    src_addr=src_addr,
+                    sequence=sequence,
+                    radius=radius,
+                    asdu_length=len(data),
+                    asdu=t.List(data),
                 )
             except CommandError as ex:
                 LOGGER.debug("'aps_data_request' failure: %s", ex)
@@ -1297,7 +1158,8 @@ class Znsp:
                 await asyncio.sleep(delay)
             else:
                 self._handle_device_state_changed(
-                    status=rsp["status"], device_state=DeviceState(network_state=NetworkState.CONNECTED)
+                    status=rsp["status"],
+                    device_state=DeviceState(network_state=NetworkState.CONNECTED),
                 )
                 return
 

@@ -1,27 +1,6 @@
 """Data types module."""
 
-from zigpy.types import (
-    EUI64,
-    NWK,
-    ExtendedPanId,
-    LongOctetString,
-    LVBytes,
-    LVList,
-    List,
-    PanId,
-    Struct,
-    bitmap6,
-    bitmap8,
-    bitmap16,
-    enum2,
-    enum3,
-    enum8,
-    int8s,
-    uint8_t,
-    uint16_t,
-    uint32_t,
-    uint64_t,
-)
+from zigpy.types import bitmap8
 
 
 def serialize_dict(data, schema):
@@ -65,6 +44,7 @@ class Bytes(bytes):
     @classmethod
     def deserialize(cls, data):
         return cls(data), b""
+
 
 class ZnspTransmitOptions(bitmap8):
     NONE = 0x00

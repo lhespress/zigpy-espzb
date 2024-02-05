@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import importlib.metadata
 import logging
-import re
 import sys
 from typing import Any
 
@@ -28,16 +27,13 @@ import zigpy.zdo.types as zdo_t
 import zigpy_espzb
 from zigpy_espzb import types as t
 from zigpy_espzb.api import (
-    Znsp,
-    IndexedEndpoint,
     IndexedKey,
     LinkKey,
     NetworkState,
     SecurityMode,
     Status,
-    TXStatus,
+    Znsp,
 )
-
 import zigpy_espzb.exception
 
 LOGGER = logging.getLogger(__name__)
@@ -55,7 +51,6 @@ ENERGY_SCAN_ATTEMPTS = 5
 
 
 class ControllerApplication(zigpy.application.ControllerApplication):
-
     _probe_config_variants = [
         {zigpy.config.CONF_DEVICE_BAUDRATE: 115200},
     ]
@@ -150,9 +145,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             if target_state != NetworkState.CONNECTED:
                 raise
 
-            raise FormationFailure(
-                "Network formation refused."
-            )
+            raise FormationFailure("Network formation refused.")
 
     async def reset_network_info(self):
         await self.form_network()
@@ -255,9 +248,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         node_info.version = f"{int(self._api.firmware_version):#010x}"
 
-        network_info.source = (
-            f"zigpy-espzb@{importlib.metadata.version('zigpy-espzb')}"
-        )
+        network_info.source = f"zigpy-espzb@{importlib.metadata.version('zigpy-espzb')}"
         network_info.metadata = {
             "espzb": {
                 "version": node_info.version,
