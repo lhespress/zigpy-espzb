@@ -50,3 +50,8 @@ class ZnspTransmitOptions(bitmap8):
     NONE = 0x00
     ACK_ENABLED = 0x01
     SECURITY_ENABLED = 0x02
+
+
+class DeviceAddrMode:
+    # TODO: implement this class
+    pass
