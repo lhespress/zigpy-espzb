@@ -20,6 +20,7 @@ from zigpy.types import (
     APSStatus,
     Bool,
     Channels,
+    DeviceAddrMode,
     KeyData,
     SerializableBytes,
     Struct,
