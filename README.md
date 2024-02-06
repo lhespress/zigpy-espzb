@@ -72,10 +72,12 @@ Some developers might also be interested in receiving donations in the form of h
 
 ## Other radio libraries for zigpy to use as reference projects
 
-The **[zigpy-zboss](https://github.com/kardia-as/nrf-zboss-ncp)** zigpy radio library for nRF ZBOSS NCP. The development of the zigpy-zboss radio library for zigpy in turn stems from information learned from the work in the **[zigpy-znp](https://github.com/zigpy/zigpy-znp)** project.
-
 ### zigpy-znp
 The **[zigpy-znp](https://github.com/zigpy/zigpy-znp)** zigpy radio library for Texas Instruments Z-Stack ZNP interface and has been used a reference to base the zigpy-espzb and nrf-zboss-ncp radio libraries on. zigpy-znp is very stable with TI Z-Stack 3.x.x and ([zigpy-znp also offers some stand-alone CLI tools](https://github.com/zigpy/zigpy-znp/blob/dev/TOOLS.md) that are unique for Texas Instruments hardware and Zigbee stack.
+
+### zigpy-zboss
+
+The **[zigpy-zboss](https://github.com/kardia-as/nrf-zboss-ncp)** zigpy radio library for nRF ZBOSS NCP. The development of the zigpy-zboss radio library for zigpy in turn stems from information learned from the work in the **[zigpy-znp](https://github.com/zigpy/zigpy-znp)** project.
 
 ### zigpy-deconz
 The **[zigpy-deconz](https://github.com/zigpy/zigpy-deconz)** is another mature radio library for Dresden Elektronik's [deCONZ Serial Protocol interface](https://github.com/dresden-elektronik/deconz-serial-protocol) that is used by the deconz firmware for their ConBee and RaspBee seriies of Zigbee Coordinator adapters. Existing zigpy developers previous advice has been to also look at zigpy-deconz since it is somewhat similar to the ZBOSS serial protocol implementation.
