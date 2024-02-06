@@ -27,9 +27,10 @@ Supported targets	are ESP32-H2 and ESP32-C6, tested with the official devkits an
 Development is primarily being done with Espressif's ESP Thread Border Router SDK hardware (based on ESP32-H2-MINI-1 module):
 
 - https://docs.espressif.com/projects/esp-thread-br/en/latest/
-  - https://github.com/espressif/esp-thread-br
-  - https://github.com/espressif/esp-idf/tree/master/examples/openthread/ot_br
-  - https://openthread.io/guides/border-router/espressif-esp32
+  - https://github.com/espressif/esp-zigbee-sdk/tree/main/examples/esp_zigbee_gateway
+    - https://github.com/espressif/esp-thread-br
+    - https://github.com/espressif/esp-idf/tree/master/examples/openthread/ot_br
+    - https://openthread.io/guides/border-router/espressif-esp32
  
 # Firmware
 
