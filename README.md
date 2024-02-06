@@ -13,7 +13,7 @@ This together with the zigpy library and a home automation software application 
 
 Note! Zigbee NCP support for [ESP32](https://en.wikipedia.org/wiki/ESP32) is still in very early development in Espressif Zigbee SDK (based on [DSR ZBOSS stack as part of "ZBOSS Open Initiative", a.k.a. ZOI](https://dsr-zoi.com/)). It is currently compatible with ESP32-C6 and ESP32-H2, both containing 802.15.4 radio, and are officially recognized as Zigbee-Compliant platforms by the CSA (Connectivity Standards Alliance, formerly the Zigbee Alliance), of which [Espressif](https://www.espressif.com) is a board and promoter member.
 
-Development is initially focused on Zigbee Coordinator functionality using "ESP Thread Border Router SDK" development kit hardware. That implementation provides an all-in-one embedded Zigbee (or Thread) to Wi-Fi Serial-over-IP proxy solution, with the board designed using two-SoC set-up consisting of an ESP32-H2 SoC for Zigbee (or Thread) in combination with an ESP32-S3 SoC (with internal UART communication) for Wi-Fi/Ethernet bridging.
+Development is initially focused on Zigbee Coordinator functionality using "ESP Thread Border Router SDK" development kit hardware. That implementation provides an all-in-one embedded Zigbee (or Thread) to Wi-Fi Serial-over-IP proxy solution, with the board designed using two-SoC set-up consisting of an ESP32-H2 SoC for Zigbee (or Thread) in combination with an ESP32-S3 SoC (with internal UART/SPI communication) for Wi-Fi/Ethernet bridging.
 
 Alternative to the ESP32-H2 (which only supports 802.15.4), the ESP32-C6 SoC/module development board was launched more recently and features built-in WiFi 6, BLE 5.0, and 802.15.4, including Zigbee (or Thread), all on the same chip. It could thus be used as a single-chip Zigbee Coordinator Serial-over-IP proxy solution over Wi-Fi, or over Ethernet physical layer if combined with a PHY Ethernet implementation on a board for RJ45 wired connection. 
 
@@ -28,6 +28,8 @@ Development is primarily being done with Espressif's ESP Thread Border Router SD
 
 - https://docs.espressif.com/projects/esp-thread-br/en/latest/
   - https://github.com/espressif/esp-thread-br
+  - https://github.com/espressif/esp-idf/tree/master/examples/openthread/ot_br
+  - https://openthread.io/guides/border-router/espressif-esp32
  
 # Firmware
 
