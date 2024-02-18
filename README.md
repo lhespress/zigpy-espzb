@@ -86,7 +86,7 @@ The **[zigpy-deconz](https://github.com/zigpy/zigpy-deconz)** is another mature 
 [zigpy-deconz-parser](https://github.com/zha-ng/zigpy-deconz-parser) allow developers to parse Home Assistant's ZHA component debug logs using the zigpy-deconz radio library if you are using a deCONZ based adapter like ConBee or RaspBee.
 
 ### bellows
-The **[bellows](https://github.com/zigpy/bellows)** is made Silicon Labs [EZSP (EmberZNet Serial Protocol)](https://www.silabs.com/documents/public/user-guides/ug100-ezsp-reference-guide.pdf) interface and is another mature zigpy radio library project worth taking a look at as a reference, (as both it and some other zigpy radio libraires have some unique features and functions that others do not).
+The **[bellows](https://github.com/zigpy/bellows)** is made Silicon Labs [EZSP (EmberZNet Serial Protocol)](https://www.silabs.com/documents/public/user-guides/ug100-ezsp-reference-guide.pdf) interface and is another mature zigpy radio library project worth taking a look at as a reference, (as both it and some other zigpy radio libraries have some unique features and functions that others do not).
 
 # Related projects
 
