@@ -56,6 +56,10 @@ Note! The official documentation for the ZNSP can currently be obtained from Esp
 
 - https://docs.espressif.com/projects/esp-zigbee-sdk
   - https://github.com/espressif/esp-zigbee-sdk/tree/main/examples/esp_zigbee_ncp
+  - https://github.com/espressif/esp-zigbee-sdk/tree/main/examples/esp_zigbee_host
+  - https://github.com/espressif/esp-zigbee-sdk/tree/main/examples/esp_zigbee_cli
+  - https://github.com/espressif/esp-zigbee-sdk/tree/main/examples/esp_zigbee_ota
+  - https://github.com/espressif/esp-zigbee-sdk/tree/main/examples/esp_zigbee_gateway
 - https://docs.espressif.com/projects/esp-zigbee-sdk/en/latest/esp32/
   - https://docs.espressif.com/projects/esp-zigbee-sdk/en/latest/esp32h2/application.html
   - https://docs.espressif.com/projects/esp-zigbee-sdk/en/latest/esp32c6/application.html
