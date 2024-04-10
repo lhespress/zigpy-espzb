@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import collections
-import itertools
 import logging
 import sys
 from typing import Any, Callable
@@ -16,15 +15,15 @@ else:
 
 from zigpy.config import CONF_DEVICE_PATH
 import zigpy.types as t
-from zigpy.zdo.types import SimpleDescriptor
 
-from zigpy_espzb.exception import APIException, CommandError, MismatchedResponseError
+from zigpy_espzb.exception import APIException, CommandError
 from zigpy_espzb.types import (
     Bytes,
-    DeviceAddrMode,
+    ExtendedAddrMode,
+    ShiftedChannels,
     ZnspTransmitOptions,
+    addr_mode_with_eui64_to_addr_mode_address,
     deserialize_dict,
-    list_replace,
 )
 import zigpy_espzb.uart
 
@@ -34,14 +33,12 @@ COMMAND_TIMEOUT = 1.8
 PROBE_TIMEOUT = 2
 REQUEST_RETRY_DELAYS = (0.5, 1.0, 1.5, None)
 
-FRAME_LENGTH = object()
-PAYLOAD_LENGTH = object()
-
 
 class DeviceType(t.enum8):
-    COORDINATOR = 0
-    ROUTER = 1
-    ED = 2
+    COORDINATOR = 0x00
+    ROUTER = 0x01
+    END_DEVICE = 0x02
+    NONE = 0x03
 
 
 class Status(t.enum8):
@@ -74,8 +71,6 @@ class NetworkState(t.enum8):
 class SecurityMode(t.enum8):
     NO_SECURITY = 0x00
     PRECONFIGURED_NETWORK_KEY = 0x01
-    NETWORK_KEY_FROM_TC = 0x02
-    ONLY_TCLK = 0x03
 
 
 class ZDPResponseHandling(t.bitmap16):
@@ -85,16 +80,27 @@ class ZDPResponseHandling(t.bitmap16):
 
 class FormNetwork(t.Struct):
     role: DeviceType
-    policy: t.Bool
-    nwk_cfg0: t.uint8_t
-    nwk_cfg1: t.uint32_t
+    install_code_policy: t.Bool
+
+    # For coordinators/routers
+    max_children: t.uint8_t = t.StructField(
+        requires=lambda f: f.role in (DeviceType.ROUTER, DeviceType.COORDINATOR)
+    )
+
+    # For end devices
+    ed_timeout: t.uint8_t = t.StructField(
+        requires=lambda f: f.role == DeviceType.END_DEVICE
+    )
+    keep_alive: t.uint32_t = t.StructField(
+        requires=lambda f: f.role == DeviceType.END_DEVICE
+    )
 
 
 class CommandId(t.enum16):
     network_init = 0x0000
     start = 0x0001
     network_state = 0x0002
-    change_network_state = 0x0003
+    stack_status_handler = 0x0003
     form_network = 0x0004
     permit_joining = 0x0005
     join_network = 0x0006
@@ -166,65 +172,48 @@ class TXStatus(t.enum8):
         return status
 
 
-class IndexedKey(t.Struct):
-    index: t.uint8_t
-    key: t.KeyData
-
-
-class LinkKey(t.Struct):
-    ieee: t.EUI64
-    key: t.KeyData
-
-
-class IndexedEndpoint(t.Struct):
-    index: t.uint8_t
-    descriptor: SimpleDescriptor
-
-
-class UpdateNeighborAction(t.enum8):
-    ADD = 0x01
+class FrameType(t.enum4):
+    Request = 0
+    Response = 1
+    Indicate = 2
 
 
 class Command(t.Struct):
-    flags: t.uint16_t
+    version: t.uint4_t
+    frame_type: FrameType
+    reserved: t.uint8_t
+
     command_id: CommandId
     seq: t.uint8_t
+    length: t.uint16_t
     payload: Bytes
 
 
 COMMAND_SCHEMAS = {
     CommandId.network_init: (
+        {},
         {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.start: (
         {
-            "payload_length": PAYLOAD_LENGTH,
             "autostart": t.Bool,
         },
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.form_network: (
         {
-            "payload_length": PAYLOAD_LENGTH,
-            "form_mwk": FormNetwork,
+            "form_nwk": FormNetwork,
         },
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {
-            "payload_length": t.uint16_t,
             "extended_panid": t.EUI64,
             "panid": t.uint16_t,
             "channel": t.uint8_t,
@@ -232,150 +221,132 @@ COMMAND_SCHEMAS = {
     ),
     CommandId.permit_joining: (
         {
-            "payload_length": PAYLOAD_LENGTH,
-            "form_mwk": FormNetwork,
+            "duration": t.uint8_t,
         },
         {
-            "payload_length": t.uint16_t,
-            "permit": t.uint8_t,
+            "status": Status,
         },
         {
-            "payload_length": t.uint16_t,
-            "permit": t.uint8_t,
+            "duration": t.uint8_t,
+        },
+    ),
+    CommandId.leave_network: (
+        {},
+        {
+            "status": Status,
+        },
+        {
+            "short_addr": t.NWK,
+            "device_addr": t.EUI64,
+            "rejoin": t.Bool,
         },
     ),
     CommandId.extpanid_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "ieee": t.EUI64},
+        {},
+        {"ieee": t.EUI64},
         {},
     ),
     CommandId.extpanid_set: (
-        {"payload_length": PAYLOAD_LENGTH, "ieee": t.EUI64},
+        {"ieee": t.EUI64},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.panid_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "panid": t.uint16_t},
+        {},
+        {"panid": t.uint16_t},
         {},
     ),
     CommandId.panid_set: (
-        {"payload_length": PAYLOAD_LENGTH, "panid": t.PanId},
+        {"panid": t.PanId},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.short_addr_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "short_addr": t.uint16_t},
+        {},
+        {"short_addr": t.NWK},
         {},
     ),
     CommandId.short_addr_set: (
-        {"payload_length": PAYLOAD_LENGTH, "short_addr": t.uint16_t},
+        {"short_addr": t.NWK},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.long_addr_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "ieee": t.EUI64},
+        {},
+        {"ieee": t.EUI64},
         {},
     ),
     CommandId.long_addr_set: (
-        {"payload_length": PAYLOAD_LENGTH, "ieee": t.EUI64},
+        {"ieee": t.EUI64},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.current_channel_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "channel": t.uint8_t},
+        {},
+        {"channel": t.uint8_t},
         {},
     ),
     CommandId.current_channel_set: (
-        {"payload_length": PAYLOAD_LENGTH, "channel": t.uint8_t},
+        {"channel": t.uint8_t},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.primary_channel_mask_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "channel_mask": t.uint32_t},
+        {},
+        {"channel_mask": ShiftedChannels},
         {},
     ),
     CommandId.primary_channel_mask_set: (
-        {"payload_length": PAYLOAD_LENGTH, "channel_mask": t.Channels},
+        {"channel_mask": ShiftedChannels},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.add_endpoint: (
         {
-            "payload_length": PAYLOAD_LENGTH,
             "endpoint": t.uint8_t,
-            "profileId": t.uint16_t,
-            "deviceId": t.uint16_t,
-            "appFlags": t.uint8_t,
-            "inputClusterCount": t.uint8_t,
-            "outputClusterCount": t.uint8_t,
-            "inputClusterList": t.List[t.uint8_t],
-            "outputClusterList": t.List[t.uint8_t],
+            "profile_id": t.uint16_t,
+            "device_id": t.uint16_t,
+            "app_flags": t.uint8_t,
+            "input_cluster_count": t.uint8_t,
+            "output_cluster_count": t.uint8_t,
+            "input_cluster_list": t.List[t.uint16_t],
+            "output_cluster_list": t.List[t.uint16_t],
         },
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.network_state: (
+        {},
         {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {
-            "payload_length": t.uint16_t,
             "network_state": NetworkState,
         },
         {},
     ),
-    CommandId.change_network_state: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-            "network_state": t.uint8_t,
-        },
-        {
-            "payload_length": t.uint16_t,
-            "network_state": t.uint8_t,
-        },
+    CommandId.stack_status_handler: (
         {},
+        {
+            "network_state": t.uint8_t,
+        },
+        {
+            "network_state": t.uint8_t,
+        },
     ),
     CommandId.aps_data_request: (
         {
-            "payload_length": PAYLOAD_LENGTH,
             "dst_addr": t.EUI64,
             "dst_endpoint": t.uint8_t,
             "src_endpoint": t.uint8_t,
@@ -388,25 +359,21 @@ COMMAND_SCHEMAS = {
             "sequence": t.uint8_t,
             "radius": t.uint8_t,
             "asdu_length": t.uint32_t,
-            "asdu": t.List[t.uint8_t],
+            "asdu": Bytes,
         },
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.aps_data_indication: (
+        {},
         {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {
-            "payload_length": t.uint16_t,
             "network_state": NetworkState,
-            "dst_addr_mode": t.uint8_t,
+            "dst_addr_mode": ExtendedAddrMode,
             "dst_addr": t.EUI64,
             "dst_ep": t.uint8_t,
-            "src_addr_mode": t.uint8_t,
+            "src_addr_mode": ExtendedAddrMode,
             "src_addr": t.EUI64,
             "src_ep": t.uint8_t,
             "profile_id": t.uint16_t,
@@ -416,15 +383,14 @@ COMMAND_SCHEMAS = {
             "lqi": t.uint8_t,
             "rx_time": t.uint32_t,
             "asdu_length": t.uint32_t,
-            "asdu": t.List[t.uint8_t],
+            "asdu": Bytes,
         },
         {
-            "payload_length": t.uint16_t,
             "network_state": NetworkState,
-            "dst_addr_mode": t.uint8_t,
+            "dst_addr_mode": ExtendedAddrMode,
             "dst_addr": t.EUI64,
             "dst_ep": t.uint8_t,
-            "src_addr_mode": t.uint8_t,
+            "src_addr_mode": ExtendedAddrMode,
             "src_addr": t.EUI64,
             "src_ep": t.uint8_t,
             "profile_id": t.uint16_t,
@@ -434,17 +400,14 @@ COMMAND_SCHEMAS = {
             "lqi": t.uint8_t,
             "rx_time": t.uint32_t,
             "asdu_length": t.uint32_t,
-            "asdu": t.List[t.uint8_t],
+            "asdu": Bytes,
         },
     ),
     CommandId.aps_data_confirm: (
+        {},
         {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {
-            "payload_length": t.uint16_t,
             "network_state": NetworkState,
-            "dst_addr_mode": t.uint8_t,
+            "dst_addr_mode": ExtendedAddrMode,
             "dst_addr": t.EUI64,
             "dst_ep": t.uint8_t,
             "src_ep": t.uint8_t,
@@ -452,130 +415,107 @@ COMMAND_SCHEMAS = {
             "request_id": t.uint8_t,
             "confirm_status": TXStatus,
             "asdu_length": t.uint32_t,
-            "asdu": t.List[t.uint8_t],
+            "asdu": Bytes,
         },
         {
-            "payload_length": t.uint16_t,
             "network_state": NetworkState,
-            "dst_addr_mode": t.uint8_t,
+            "dst_addr_mode": ExtendedAddrMode,
             "dst_addr": t.EUI64,
             "dst_ep": t.uint8_t,
             "src_ep": t.uint8_t,
             "tx_time": t.uint32_t,
             "confirm_status": TXStatus,
             "asdu_length": t.uint32_t,
-            "asdu": t.List[t.uint8_t],
+            "asdu": Bytes,
         },
     ),
     CommandId.network_key_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "nwk_key": t.KeyData},
+        {},
+        {"nwk_key": t.KeyData},
         {},
     ),
     CommandId.network_key_set: (
-        {"payload_length": PAYLOAD_LENGTH, "nwk_key": t.KeyData},
+        {"nwk_key": t.KeyData},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.nwk_frame_counter_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "nwk_frame_counter": t.uint32_t},
+        {},
+        {"nwk_frame_counter": t.uint32_t},
         {},
     ),
     CommandId.nwk_frame_counter_set: (
-        {"payload_length": PAYLOAD_LENGTH, "nwk_frame_counter": t.uint32_t},
+        {"nwk_frame_counter": t.uint32_t},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.network_role_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "role": t.uint8_t},
+        {},
+        {"role": DeviceType},
         {},
     ),
     CommandId.network_role_set: (
-        {"payload_length": PAYLOAD_LENGTH, "role": t.uint8_t},
+        {"role": DeviceType},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.use_predefined_nwk_panid_set: (
-        {"payload_length": PAYLOAD_LENGTH, "predefined": t.Bool},
+        {"predefined": t.Bool},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.nwk_update_id_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "nwk_update_id": t.uint8_t},
+        {},
+        {"nwk_update_id": t.uint8_t},
         {},
     ),
     CommandId.nwk_update_id_set: (
-        {"payload_length": PAYLOAD_LENGTH, "nwk_update_id": t.uint8_t},
+        {"nwk_update_id": t.uint8_t},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.trust_center_address_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "trust_center_addr": t.EUI64},
+        {},
+        {"trust_center_addr": t.EUI64},
         {},
     ),
     CommandId.trust_center_address_set: (
-        {"payload_length": PAYLOAD_LENGTH, "trust_center_addr": t.EUI64},
+        {"trust_center_addr": t.EUI64},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.link_key_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "link_key": LinkKey},
+        {},
+        {"key": t.KeyData},
         {},
     ),
     CommandId.link_key_set: (
-        {"payload_length": PAYLOAD_LENGTH, "link_key": t.KeyData},
+        {"key": t.KeyData},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
     ),
     CommandId.security_mode_get: (
-        {
-            "payload_length": PAYLOAD_LENGTH,
-        },
-        {"payload_length": t.uint16_t, "security_mode": SecurityMode},
+        {},
+        {"security_mode": SecurityMode},
         {},
     ),
     CommandId.security_mode_set: (
-        {"payload_length": PAYLOAD_LENGTH, "security_mode": SecurityMode},
+        {"security_mode": SecurityMode},
         {
-            "payload_length": t.uint16_t,
             "status": Status,
         },
         {},
@@ -621,7 +561,6 @@ class Znsp:
 
         # TODO: implement a firmware version command
         self._network_state = await self.get_network_state()
-        self._data_poller_task = asyncio.create_task(self._data_poller())
 
     def connection_lost(self, exc: Exception) -> None:
         """Lost serial connection."""
@@ -645,14 +584,7 @@ class Znsp:
             self._uart.close()
             self._uart = None
 
-    async def send_command(self, cmd, **kwargs) -> Any:
-        while True:
-            try:
-                return await self._command(cmd, **kwargs)
-            except MismatchedResponseError as exc:
-                LOGGER.debug("Firmware responded incorrectly (%s), retrying", exc)
-
-    async def _command(self, cmd, **kwargs):
+    async def send_command(self, cmd, **kwargs):
         payload = []
         tx_schema, _, _ = COMMAND_SCHEMAS[cmd]
         trailing_optional = False
@@ -664,8 +596,6 @@ class Znsp:
                     value = param_type.serialize()
                 else:
                     value = type(param_type)(kwargs[name]).serialize()
-            elif name in ("frame_length", "payload_length"):
-                value = param_type
             elif kwargs.get(name) is None:
                 trailing_optional = True
                 value = None
@@ -685,20 +615,15 @@ class Znsp:
 
             payload.append(value)
 
-        if PAYLOAD_LENGTH in payload:
-            payload = list_replace(
-                lst=payload,
-                old=PAYLOAD_LENGTH,
-                new=t.uint16_t(
-                    sum(len(p) for p in payload[payload.index(PAYLOAD_LENGTH) + 1 :])
-                ).serialize(),
-            )
-
+        serialized_payload = b"".join(payload)
         command = Command(
-            flags=0x0000,
+            version=0b0000,
+            frame_type=FrameType.Request,
+            reserved=0x00,
             command_id=cmd,
             seq=None,
-            payload=b"".join(payload),
+            length=len(serialized_payload),
+            payload=serialized_payload,
         )
 
         if self._uart is None:
@@ -732,27 +657,32 @@ class Znsp:
             LOGGER.warning("Unknown command received: %s", command)
             return
 
-        if command.flags == 0x0010:
-            _, rx_schema, _ = COMMAND_SCHEMAS[command.command_id]
-        elif command.flags == 0x0020:
-            _, _, rx_schema = COMMAND_SCHEMAS[command.command_id]
+        tx_schema, rx_schema, ind_schema = COMMAND_SCHEMAS[command.command_id]
+
+        if command.frame_type == FrameType.Request:
+            schema = tx_schema
+        elif command.frame_type == FrameType.Response:
+            schema = rx_schema
+        elif command.frame_type == FrameType.Indicate:
+            schema = ind_schema
+        else:
+            raise ValueError(f"Unknown frame type: {command}")
+
+        # We won't implement requests for now
+        assert command.frame_type != FrameType.Request
 
         fut = None
-        wrong_fut_cmd_id = None
+
+        if command.frame_type == FrameType.Response:
+            try:
+                fut = self._awaiting[command.seq][command.command_id][0]
+            except IndexError:
+                LOGGER.warning(
+                    "Received unexpected response %s%s", command.command_id, command
+                )
 
         try:
-            fut = self._awaiting[command.seq][command.command_id][0]
-        except IndexError:
-            # XXX: The firmware can sometimes respond with the wrong response. Find the
-            # future associated with it so we can throw an appropriate error.
-            for cmd_id, futs in self._awaiting[command.seq].items():
-                if futs:
-                    fut = futs[0]
-                    wrong_fut_cmd_id = cmd_id
-                    break
-
-        try:
-            params, rest = deserialize_dict(command.payload, rx_schema)
+            params, rest = deserialize_dict(command.payload, schema)
         except Exception:
             LOGGER.warning("Failed to parse command %s", command, exc_info=True)
 
@@ -766,17 +696,6 @@ class Znsp:
         if rest:
             LOGGER.debug("Unparsed data remains after frame: %s, %s", command, rest)
 
-        if "payload_length" in params:
-            running_length = itertools.accumulate(
-                len(v.serialize()) if v is not None else 0 for v in params.values()
-            )
-            length_at_param = dict(zip(params.keys(), running_length))
-
-            assert (
-                len(data) - length_at_param["payload_length"] - 5
-                == params["payload_length"]
-            )
-
         LOGGER.debug(
             "Received command %s%s (seq %d)", command.command_id, params, command.seq
         )
@@ -787,16 +706,7 @@ class Znsp:
 
         exc = None
 
-        if wrong_fut_cmd_id is not None:
-            exc = MismatchedResponseError(
-                command.command_id,
-                params,
-                (
-                    f"Response is mismatched! Sent {wrong_fut_cmd_id},"
-                    f" received {command.command_id}"
-                ),
-            )
-        elif status != Status.SUCCESS:
+        if status != Status.SUCCESS:
             exc = CommandError(status, f"{command.command_id}, status: {status}")
 
         if fut is not None:
@@ -814,64 +724,50 @@ class Znsp:
             if exc is not None:
                 return
 
-        if handler := getattr(self, f"_handle_{command.command_id}", None):
-            handler_params = {
-                k: v
-                for k, v in params.items()
-                if k not in ("frame_length", "payload_length")
-            }
-
+        if handler := getattr(self, f"_handle_{command.command_id.name}", None):
             # Queue up the callback within the event loop
-            asyncio.get_running_loop().call_soon(lambda: handler(**handler_params))
+            asyncio.get_running_loop().call_soon(lambda: handler(**params))
 
-    async def _data_poller(self):
-        while True:
-            await self._data_poller_event.wait()
-            self._data_poller_event.clear()
-
-            if self._network_state == NetworkState.OFFLINE:
-                continue
-
-            # Poll data indication
-            rsp = await self.send_command(CommandId.aps_data_indication)
-            self._handle_network_state_changed(
-                Status.SUCCESS, network_state=rsp["network_state"]
-            )
-
-            if rsp["network_state"] == NetworkState.INDICATION:
-                self._app.packet_received(
-                    t.ZigbeePacket(
-                        src=t.AddrModeAddress(
-                            addr_mode=rsp["src_addr_mode"],
-                            address=rsp["src_addr"],
-                        ),
-                        src_ep=rsp["src_ep"],
-                        dst=t.AddrModeAddress(
-                            addr_mode=rsp["dst_addr_mode"],
-                            address=rsp["dst_addr"],
-                        ),
-                        dst_ep=rsp["dst_ep"],
-                        tsn=None,
-                        profile_id=rsp["profile_id"],
-                        cluster_id=rsp["cluster_id"],
-                        data=t.SerializableBytes(rsp["asdu"]),
-                        lqi=rsp["lqi"],
-                        rssi=rsp["rssi"],
-                    )
-                )
-
-            # Poll data confirm
-            rsp = await self.send_command(CommandId.aps_data_confirm)
-            self._handle_network_state_changed(
-                Status.SUCCESS, network_state=rsp["network_state"]
-            )
-
-    def _handle_network_state_changed(
+    def _handle_aps_data_indication(
         self,
-        status: t.Status,
         network_state: NetworkState,
-    ) -> None:
-        if network_state.network_state != self.network_state:
+        dst_addr_mode: ExtendedAddrMode,
+        dst_addr: t.EUI64,
+        dst_ep: t.uint8_t,
+        src_addr_mode: ExtendedAddrMode,
+        src_addr: t.EUI64,
+        src_ep: t.uint8_t,
+        profile_id: t.uint16_t,
+        cluster_id: t.uint16_t,
+        indication_status: TXStatus,
+        security_status: t.uint8_t,
+        lqi: t.uint8_t,
+        rx_time: t.uint32_t,
+        asdu_length: t.uint32_t,
+        asdu: Bytes,
+    ):
+        if network_state == NetworkState.INDICATION:
+            self._app.packet_received(
+                t.ZigbeePacket(
+                    src=addr_mode_with_eui64_to_addr_mode_address(
+                        src_addr_mode, src_addr
+                    ),
+                    src_ep=src_ep,
+                    dst=addr_mode_with_eui64_to_addr_mode_address(
+                        dst_addr_mode, dst_addr
+                    ),
+                    dst_ep=dst_ep,
+                    tsn=None,
+                    profile_id=profile_id,
+                    cluster_id=cluster_id,
+                    data=t.SerializableBytes(asdu),
+                    lqi=lqi,
+                    rssi=None,
+                )
+            )
+
+    def _handle_network_state_changed(self, network_state: NetworkState) -> None:
+        if network_state != self.network_state:
             LOGGER.debug(
                 "Network network_state transition: %s -> %s",
                 self.network_state.name,
@@ -881,57 +777,57 @@ class Znsp:
         self._network_state = network_state
         self._data_poller_event.set()
 
-    def _handle_network_state(
-        self,
-        status: t.Status,
-        network_state: NetworkState,
-        reserved1: t.uint8_t,
-        reserved2: t.uint8_t,
-    ) -> None:
-        self._handle_network_state_changed(status=status, network_state=network_state)
+    def _handle_network_state(self, network_state: NetworkState) -> None:
+        self._handle_network_state_changed(network_state=network_state)
 
-    async def network_init(self):
+    async def network_init(self) -> None:
         await self.send_command(CommandId.network_init)
-        await self.form_network(
-            FormNetwork(
-                role=DeviceType.COORDINATOR, policy=False, nwk_cfg0=0x14, nwk_cfg1=0
-            )
-        )
-        await self.start(autostart=False)
 
-        return Status.SUCCESS
-
-    async def channel_mask(self):
-        rssult = []
+    async def get_channel_mask(self) -> t.Channels:
         rsp = await self.send_command(CommandId.primary_channel_mask_get)
+        return t.Channels.from_channel_list(tuple(rsp["channel_mask"]))
 
-        for index in range(32):
-            if (rsp["channel_mask"] & (1 << index)) != 0:
-                rssult.append(index)
-
-        return rssult
-
-    async def set_channel_mask(self, parameter: t.Channels):
-        rsp = await self.send_command(
-            CommandId.primary_channel_mask_set, channel_mask=parameter
+    async def set_channel_mask(self, channels: t.Channels) -> None:
+        await self.send_command(
+            CommandId.primary_channel_mask_set,
+            channel_mask=ShiftedChannels.from_channel_list(channels),
         )
 
-        return rsp["status"]
+    async def set_channel(self, channel: int) -> None:
+        await self.send_command(CommandId.current_channel_set, channel=channel)
 
-    async def form_network(self, parameter: FormNetwork):
+    async def form_network(
+        self,
+        role: DeviceType = DeviceType.COORDINATOR,
+        install_code_policy: bool = False,
+        # For coordinators/routers
+        max_children: t.uint8_t = 20,
+        # For end devices
+        ed_timeout: t.uint8_t = 0,
+        keep_alive: t.uint32_t = 0,
+    ) -> None:
         rsp = await self.send_command(
             CommandId.form_network,
-            form_mwk=parameter,
+            form_nwk=FormNetwork(
+                role=role,
+                install_code_policy=install_code_policy,
+                max_children=max_children,
+                ed_timeout=ed_timeout,
+                keep_alive=keep_alive,
+            ),
         )
 
         return rsp["status"]
+
+    async def leave_network(self) -> None:
+        await self.send_command(CommandId.leave_network)
 
     async def start(self, autostart: bool) -> Status:
         rsp = await self.send_command(CommandId.start, autostart=t.uint8_t(autostart))
 
         return rsp["status"]
 
-    async def mac_address(self):
+    async def get_mac_address(self):
         rsp = await self.send_command(CommandId.long_addr_get)
 
         return rsp["ieee"]
@@ -941,7 +837,7 @@ class Znsp:
 
         return rsp["status"]
 
-    async def nwk_address(self):
+    async def get_nwk_address(self):
         rsp = await self.send_command(CommandId.short_addr_get)
 
         return rsp["short_addr"]
@@ -951,7 +847,7 @@ class Znsp:
 
         return rsp["status"]
 
-    async def nwk_panid(self):
+    async def get_nwk_panid(self):
         rsp = await self.send_command(CommandId.panid_get)
 
         return rsp["panid"]
@@ -961,7 +857,7 @@ class Znsp:
 
         return rsp["status"]
 
-    async def nwk_extended_panid(self):
+    async def get_nwk_extended_panid(self):
         rsp = await self.send_command(CommandId.extpanid_get)
 
         return rsp["ieee"]
@@ -971,12 +867,12 @@ class Znsp:
 
         return rsp["status"]
 
-    async def current_channel(self):
+    async def get_current_channel(self) -> int:
         rsp = await self.send_command(CommandId.current_channel_get)
 
         return rsp["channel"]
 
-    async def nwk_update_id(self):
+    async def get_nwk_update_id(self):
         rsp = await self.send_command(CommandId.nwk_update_id_get)
 
         return rsp["nwk_update_id"]
@@ -988,19 +884,15 @@ class Znsp:
 
         return rsp["status"]
 
-    async def network_key(self):
+    async def get_network_key(self):
         rsp = await self.send_command(CommandId.network_key_get)
 
-        indexed_key = IndexedKey(index=0, key=rsp["nwk_key"])
+        return rsp["nwk_key"]
 
-        return indexed_key
+    async def set_network_key(self, key: t.KeyData):
+        await self.send_command(CommandId.network_key_set, nwk_key=key)
 
-    async def set_network_key(self, parameter: IndexedKey):
-        rsp = await self.send_command(CommandId.network_key_set, nwk_key=parameter.key)
-
-        return rsp["status"]
-
-    async def nwk_frame_counter(self):
+    async def get_nwk_frame_counter(self):
         rsp = await self.send_command(CommandId.nwk_frame_counter_get)
 
         return rsp["nwk_frame_counter"]
@@ -1013,7 +905,7 @@ class Znsp:
 
         return rsp["status"]
 
-    async def trust_center_address(self):
+    async def get_trust_center_address(self):
         rsp = await self.send_command(CommandId.trust_center_address_get)
 
         return rsp["trust_center_addr"]
@@ -1025,17 +917,15 @@ class Znsp:
 
         return rsp["status"]
 
-    async def link_key(self, parameter: Any = None) -> Any:
+    async def get_link_key(self) -> Any:
         rsp = await self.send_command(CommandId.link_key_get)
 
-        return rsp["link_key"]
+        return rsp["key"]
 
-    async def set_link_key(self, parameter: LinkKey):
-        rsp = await self.send_command(CommandId.link_key_set, link_key=parameter.key)
+    async def set_link_key(self, key: t.KeyData):
+        await self.send_command(CommandId.link_key_set, key=key)
 
-        return rsp["status"]
-
-    async def security_mode(self):
+    async def get_security_mode(self):
         rsp = await self.send_command(CommandId.security_mode_get)
 
         return rsp["security_mode"]
@@ -1053,25 +943,22 @@ class Znsp:
         profile: t.uint16_t,
         device_type: t.uint16_t,
         device_version: t.uint8_t,
-        input_clusters: t.LVList[t.uint16_t],
-        output_clusters: t.LVList[t.uint16_t],
+        input_clusters: list[t.ClusterId],
+        output_clusters: list[t.ClusterId],
     ):
-        inputClusterList = t.LVList[t.uint16_t].serialize(input_clusters)
-        outputClusterList = t.LVList[t.uint16_t].serialize(output_clusters)
-
         if profile == 0xC05E:
             return Status.SUCCESS
 
         rsp = await self.send_command(
             CommandId.add_endpoint,
             endpoint=endpoint,
-            profileId=profile,
-            deviceId=device_type,
-            appFlags=device_version,
-            inputClusterCount=len(input_clusters),
-            outputClusterCount=len(output_clusters),
-            inputClusterList=t.List(inputClusterList[1:]),
-            outputClusterList=t.List(outputClusterList[1:]),
+            profile_id=profile,
+            device_id=device_type,
+            app_flags=device_version,
+            input_cluster_count=len(input_clusters),
+            output_cluster_count=len(output_clusters),
+            input_cluster_list=input_clusters,
+            output_cluster_list=output_clusters,
         )
 
         return rsp["status"]
@@ -1100,29 +987,15 @@ class Znsp:
 
         return rsp["status"]
 
-    async def aps_designed_coordinator(self):
-        rsp = await self.send_command(
-            CommandId.network_role_get,
-            reserved=0,
-        )
-
+    async def get_network_role(self) -> DeviceType:
+        rsp = await self.send_command(CommandId.network_role_get)
         return rsp["role"]
 
-    async def set_aps_designed_coordinator(self, parameter: t.uint8_t):
+    async def set_network_role(self, role: DeviceType) -> None:
         rsp = await self.send_command(
             CommandId.network_role_set,
-            role=parameter,
+            role=role,
         )
-
-        return rsp["status"]
-
-    async def aps_extended_panid(self):
-        rsp = await self.send_command(CommandId.extpanid_get)
-
-        return rsp["ieee"]
-
-    async def set_aps_extended_panid(self, parameter: t.ExtendedPanId):
-        rsp = await self.send_command(CommandId.extpanid_set, ieee=parameter)
 
         return rsp["status"]
 
@@ -1133,7 +1006,7 @@ class Znsp:
         src_addr: t.EUI64,
         src_ep: t.uint8_t,
         profile: t.uint16_t,
-        addr_mode: DeviceAddrMode,
+        addr_mode: t.AddrMode,
         cluster: t.uint16_t,
         sequence: t.uint16_t,
         options: ZnspTransmitOptions,
@@ -1144,7 +1017,7 @@ class Znsp:
     ):
         for delay in REQUEST_RETRY_DELAYS:
             try:
-                rsp = await self.send_command(
+                await self.send_command(
                     CommandId.aps_data_request,
                     dst_addr=dst_addr,
                     dst_endpoint=dst_ep,
@@ -1168,10 +1041,6 @@ class Znsp:
                 LOGGER.debug("retrying 'aps_data_request' in %ss", delay)
                 await asyncio.sleep(delay)
             else:
-                self._handle_network_state_changed(
-                    status=rsp["status"],
-                    network_state=NetworkState(network_state=NetworkState.CONNECTED),
-                )
                 return
 
     async def get_network_state(self) -> NetworkState:
@@ -1179,16 +1048,23 @@ class Znsp:
 
         return rsp["network_state"]
 
-    async def change_network_state(self, new_state: NetworkState) -> None:
-        await self.send_command(CommandId.change_network_state, network_state=new_state)
+    async def reset(self) -> None:
+        # TODO: There is no reset command but we can trigger a crash if we form the
+        # network twice
 
-    async def add_neighbour(
-        self, nwk: t.NWK, ieee: t.EUI64, mac_capability_flags: t.uint8_t
-    ) -> None:
-        await self.send_command(
-            CommandId.update_neighbor,
-            action=UpdateNeighborAction.ADD,
-            nwk=nwk,
-            ieee=ieee,
-            mac_capability_flags=mac_capability_flags,
-        )
+        LOGGER.debug("Resetting via crash...")
+
+        for attempt in range(5):
+            try:
+                await self.form_network()
+            except asyncio.TimeoutError:
+                break
+        else:
+            raise RuntimeError("Failed to trigger a reset/crash")
+
+        await asyncio.sleep(0.5)
+
+        LOGGER.debug("Reset complete")
+
+        # TODO: is this required to load any network settings?
+        await self.network_init()
