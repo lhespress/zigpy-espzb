@@ -32,12 +32,7 @@ LOGGER = logging.getLogger(__name__)
 
 CHANGE_NETWORK_POLL_TIME = 1
 CHANGE_NETWORK_STATE_DELAY = 2
-DELAY_NEIGHBOUR_SCAN_S = 1500
 SEND_CONFIRM_TIMEOUT = 60
-
-PROTO_VER_MANUAL_SOURCE_ROUTE = 0x010C
-PROTO_VER_WATCHDOG = 0x0108
-PROTO_VER_NEIGBOURS = 0x0107
 
 ENERGY_SCAN_ATTEMPTS = 5
 
@@ -59,7 +54,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._reconnect_task = None
 
     async def _watchdog_feed(self):
-        await self._api.set_watchdog_ttl(int(self._watchdog_period / 0.75))
+        # TODO: implement a proper software-driven watchdog
+        await self._api.get_network_state()
 
     async def connect(self):
         api = Znsp(self, self._config[zigpy.config.CONF_DEVICE])
@@ -73,7 +69,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await api.reset()
 
         # TODO: Most commands fail if the network is not formed. Why?
+        await api.network_init()
         await api.form_network(role=DeviceType.COORDINATOR)
+        await api.start(autostart=False)
 
         self._api = api
 
@@ -88,8 +86,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def start_network(self):
         await self._api.start(autostart=True)
 
-        await self.register_endpoints()
         await self.load_network_info(load_devices=False)
+        await self.register_endpoints()
 
         # Create the coordinator device
         coordinator = zigpy.device.Device(
@@ -99,7 +97,14 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         )
         self.devices[self.state.node_info.ieee] = coordinator
 
+        # TODO: why does the coordinator respond to the loopback ZDO Active_EP_req with
+        # [242, 242]? It should include endpoints 1 and 2, we registered them.
         await coordinator.schedule_initialize()
+
+        # TODO: add our registered endpoints manually so things don't crash. These
+        # should be discovered automatically.
+        coordinator.add_endpoint(1)
+        coordinator.add_endpoint(2)
 
     async def _change_network_state(
         self,
@@ -135,6 +140,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def write_network_info(self, *, network_info, node_info):
         await self._api.reset()
+        await self._api.network_init()
+        await self._api.form_network(role=DeviceType.COORDINATOR)
+        await self._api.start(autostart=False)
 
         role = {
             zdo_t.LogicalType.Coordinator: DeviceType.COORDINATOR,
@@ -148,13 +156,23 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             await self._api.set_mac_address(node_info.ieee)
             node_ieee = node_info.ieee
         else:
-            ieee = await self._api.mac_address()
-            node_ieee = zigpy.types.EUI64(ieee)
+            node_ieee = await self._api.get_mac_address()
 
-        # TODO: Why does setting the PAN ID or extended PAN ID trigger a crash?
         await self._api.set_use_predefined_nwk_panid(True)
         await self._api.set_nwk_panid(network_info.pan_id)
-        await self._api.set_nwk_extended_panid(network_info.extended_pan_id)
+
+        # TODO: Why does setting the extended PAN ID trigger a crash?
+        #   Unknown command received: Command(
+        #     version=0,
+        #     frame_type=<FrameType.Response: 1>,
+        #     reserved=0,
+        #     command_id=<CommandId.undefined_0xffff: 65535>,
+        #     seq=123,
+        #     length=1,
+        #     payload=b'\x02'
+        #   )
+
+        # await self._api.set_nwk_extended_panid(network_info.extended_pan_id)
         await self._api.set_nwk_update_id(network_info.nwk_update_id)
         await self._api.set_network_key(network_info.network_key.key)
         await self._api.set_nwk_frame_counter(network_info.network_key.tx_counter)
@@ -179,9 +197,12 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             await self._api.set_security_mode(SecurityMode.PRECONFIGURED_NETWORK_KEY)
 
         await self._api.set_channel(network_info.channel)
-        await self._api.form_network(role=role)
 
-        await asyncio.sleep(1)
+        # TODO: Network settings do not persist. How do you write them?
+        await self._api.reset()
+        await self._api.network_init()
+        await self._api.form_network(role=DeviceType.COORDINATOR)
+        await self._api.start(autostart=True)
 
     async def load_network_info(self, *, load_devices=False):
         network_info = self.state.network_info
@@ -310,7 +331,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 dst_ep=packet.dst_ep,
                 src_addr=src_addr,
                 src_ep=packet.src_ep,
-                profile=packet.profile_id,
+                profile=packet.profile_id or 0,
                 addr_mode=addr_mode,
                 cluster=packet.cluster_id,
                 sequence=packet.tsn,
@@ -323,4 +344,16 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def permit_ncp(self, time_s=60):
         assert 0 <= time_s <= 254
-        await self._api.set_permit_join(time_s)
+
+        # TODO: this does not work, the NCP responds again with:
+        #   Unknown command received: Command(
+        #     version=0,
+        #     frame_type=<FrameType.Response: 1>,
+        #     reserved=0,
+        #     command_id=<CommandId.undefined_0xffff: 65535>,
+        #     seq=144,
+        #     length=1,
+        #     payload=b'\x02'
+        #   )
+
+        # await self._api.set_permit_join(time_s)

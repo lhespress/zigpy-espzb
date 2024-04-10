@@ -215,7 +215,7 @@ COMMAND_SCHEMAS = {
         },
         {
             "extended_panid": t.EUI64,
-            "panid": t.uint16_t,
+            "panid": t.PanId,
             "channel": t.uint8_t,
         },
     ),
@@ -255,7 +255,7 @@ COMMAND_SCHEMAS = {
     ),
     CommandId.panid_get: (
         {},
-        {"panid": t.uint16_t},
+        {"panid": t.PanId},
         {},
     ),
     CommandId.panid_set: (
@@ -498,7 +498,7 @@ COMMAND_SCHEMAS = {
     ),
     CommandId.link_key_get: (
         {},
-        {"key": t.KeyData},
+        {"ieee": t.EUI64, "key": t.KeyData},
         {},
     ),
     CommandId.link_key_set: (
@@ -971,10 +971,10 @@ class Znsp:
 
         return rsp["status"]
 
-    async def set_permit_join(self, parameter: t.uint8_t):
+    async def set_permit_join(self, duration: t.uint8_t):
         rsp = await self.send_command(
-            CommandId.permit_join_set,
-            role=parameter,
+            CommandId.permit_joining,
+            duration=duration,
         )
 
         return rsp["status"]
@@ -1062,9 +1062,6 @@ class Znsp:
         else:
             raise RuntimeError("Failed to trigger a reset/crash")
 
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(2)
 
         LOGGER.debug("Reset complete")
-
-        # TODO: is this required to load any network settings?
-        await self.network_init()
