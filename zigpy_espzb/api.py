@@ -67,12 +67,8 @@ class NetworkState(t.enum8):
     JOINING = 1
     CONNECTED = 2
     LEAVING = 3
-    CONFIRM = (4,)
-    INDICATION = (5,)
-
-
-class DeviceState(t.Struct):
-    network_state: NetworkState
+    CONFIRM = 4
+    INDICATION = 5
 
 
 class SecurityMode(t.enum8):
@@ -97,7 +93,7 @@ class FormNetwork(t.Struct):
 class CommandId(t.enum16):
     network_init = 0x0000
     start = 0x0001
-    device_state = 0x0002
+    network_state = 0x0002
     change_network_state = 0x0003
     form_network = 0x0004
     permit_joining = 0x0005
@@ -356,13 +352,13 @@ COMMAND_SCHEMAS = {
         },
         {},
     ),
-    CommandId.device_state: (
+    CommandId.network_state: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
         {
             "payload_length": t.uint16_t,
-            "device_state": DeviceState,
+            "network_state": NetworkState,
         },
         {},
     ),
@@ -406,7 +402,7 @@ COMMAND_SCHEMAS = {
         },
         {
             "payload_length": t.uint16_t,
-            "device_state": DeviceState,
+            "network_state": NetworkState,
             "dst_addr_mode": t.uint8_t,
             "dst_addr": t.EUI64,
             "dst_ep": t.uint8_t,
@@ -424,7 +420,7 @@ COMMAND_SCHEMAS = {
         },
         {
             "payload_length": t.uint16_t,
-            "device_state": DeviceState,
+            "network_state": NetworkState,
             "dst_addr_mode": t.uint8_t,
             "dst_addr": t.EUI64,
             "dst_ep": t.uint8_t,
@@ -447,7 +443,7 @@ COMMAND_SCHEMAS = {
         },
         {
             "payload_length": t.uint16_t,
-            "device_state": DeviceState,
+            "network_state": NetworkState,
             "dst_addr_mode": t.uint8_t,
             "dst_addr": t.EUI64,
             "dst_ep": t.uint8_t,
@@ -460,7 +456,7 @@ COMMAND_SCHEMAS = {
         },
         {
             "payload_length": t.uint16_t,
-            "device_state": DeviceState,
+            "network_state": NetworkState,
             "dst_addr_mode": t.uint8_t,
             "dst_addr": t.EUI64,
             "dst_ep": t.uint8_t,
@@ -598,9 +594,7 @@ class Znsp:
         self._awaiting = collections.defaultdict(lambda: collections.defaultdict(list))
         self._command_lock = asyncio.Lock()
         self._config = device_config
-        self._device_state = DeviceState(
-            network_state=NetworkState.OFFLINE,
-        )
+        self._network_state = NetworkState.OFFLINE
 
         self._data_poller_event = asyncio.Event()
         self._data_poller_event.set()
@@ -619,17 +613,14 @@ class Znsp:
     @property
     def network_state(self) -> NetworkState:
         """Return current network state."""
-        return self._device_state.network_state
+        return self._network_state
 
     async def connect(self) -> None:
         assert self._uart is None
         self._uart = await zigpy_espzb.uart.connect(self._config, self)
 
-        await self.network_init()
-
-        device_state_rsp = await self.send_command(CommandId.device_state)
-        self._device_state = device_state_rsp["device_state"]
-
+        # TODO: implement a firmware version command
+        self._network_state = await self.get_network_state()
         self._data_poller_task = asyncio.create_task(self._data_poller())
 
     def connection_lost(self, exc: Exception) -> None:
@@ -838,16 +829,16 @@ class Znsp:
             await self._data_poller_event.wait()
             self._data_poller_event.clear()
 
-            if self._device_state.network_state == NetworkState.OFFLINE:
+            if self._network_state == NetworkState.OFFLINE:
                 continue
 
             # Poll data indication
             rsp = await self.send_command(CommandId.aps_data_indication)
-            self._handle_device_state_changed(
-                Status.SUCCESS, device_state=rsp["device_state"]
+            self._handle_network_state_changed(
+                Status.SUCCESS, network_state=rsp["network_state"]
             )
 
-            if rsp["device_state"] == NetworkState.INDICATION:
+            if rsp["network_state"] == NetworkState.INDICATION:
                 self._app.packet_received(
                     t.ZigbeePacket(
                         src=t.AddrModeAddress(
@@ -871,34 +862,33 @@ class Znsp:
 
             # Poll data confirm
             rsp = await self.send_command(CommandId.aps_data_confirm)
-            self._handle_device_state_changed(
-                Status.SUCCESS, device_state=rsp["device_state"]
+            self._handle_network_state_changed(
+                Status.SUCCESS, network_state=rsp["network_state"]
             )
 
-    def _handle_device_state_changed(
+    def _handle_network_state_changed(
         self,
         status: t.Status,
-        device_state: DeviceState,
-        reserved: t.uint8_t = 0,
+        network_state: NetworkState,
     ) -> None:
-        if device_state.network_state != self.network_state:
+        if network_state.network_state != self.network_state:
             LOGGER.debug(
-                "Network device_state transition: %s -> %s",
+                "Network network_state transition: %s -> %s",
                 self.network_state.name,
-                device_state.network_state.name,
+                network_state.name,
             )
 
-        self._device_state = device_state
+        self._network_state = network_state
         self._data_poller_event.set()
 
-    def _handle_device_state(
+    def _handle_network_state(
         self,
         status: t.Status,
-        device_state: DeviceState,
+        network_state: NetworkState,
         reserved1: t.uint8_t,
         reserved2: t.uint8_t,
     ) -> None:
-        self._handle_device_state_changed(status=status, device_state=device_state)
+        self._handle_network_state_changed(status=status, network_state=network_state)
 
     async def network_init(self):
         await self.send_command(CommandId.network_init)
@@ -907,7 +897,7 @@ class Znsp:
                 role=DeviceType.COORDINATOR, policy=False, nwk_cfg0=0x14, nwk_cfg1=0
             )
         )
-        await self.start(False)
+        await self.start(autostart=False)
 
         return Status.SUCCESS
 
@@ -936,8 +926,8 @@ class Znsp:
 
         return rsp["status"]
 
-    async def start(self, parameter: t.uint8_t):
-        rsp = await self.send_command(CommandId.start, autostart=parameter)
+    async def start(self, autostart: bool) -> Status:
+        rsp = await self.send_command(CommandId.start, autostart=t.uint8_t(autostart))
 
         return rsp["status"]
 
@@ -1178,16 +1168,16 @@ class Znsp:
                 LOGGER.debug("retrying 'aps_data_request' in %ss", delay)
                 await asyncio.sleep(delay)
             else:
-                self._handle_device_state_changed(
+                self._handle_network_state_changed(
                     status=rsp["status"],
-                    device_state=DeviceState(network_state=NetworkState.CONNECTED),
+                    network_state=NetworkState(network_state=NetworkState.CONNECTED),
                 )
                 return
 
-    async def get_device_state(self) -> DeviceState:
-        rsp = await self.send_command(CommandId.device_state)
+    async def get_network_state(self) -> NetworkState:
+        rsp = await self.send_command(CommandId.network_state)
 
-        return rsp["device_state"]
+        return rsp["network_state"]
 
     async def change_network_state(self, new_state: NetworkState) -> None:
         await self.send_command(CommandId.change_network_state, network_state=new_state)
