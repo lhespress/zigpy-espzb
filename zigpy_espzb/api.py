@@ -88,7 +88,7 @@ class FormNetwork(t.Struct):
     nwk_cfg1: t.uint32_t
 
 
-class CommandId(t.uint16_t):
+class CommandId(t.enum16):
     networkinit = 0x0000
     start = 0x0001
     device_state = 0x0002
