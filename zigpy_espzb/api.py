@@ -19,7 +19,13 @@ import zigpy.types as t
 from zigpy.zdo.types import SimpleDescriptor
 
 from zigpy_espzb.exception import APIException, CommandError, MismatchedResponseError
-from zigpy_espzb.types import Bytes, DeviceAddrMode, ZnspTransmitOptions, list_replace
+from zigpy_espzb.types import (
+    Bytes,
+    DeviceAddrMode,
+    ZnspTransmitOptions,
+    deserialize_dict,
+    list_replace,
+)
 import zigpy_espzb.uart
 
 LOGGER = logging.getLogger(__name__)
@@ -731,7 +737,7 @@ class Znsp:
                     break
 
         try:
-            params, rest = t.deserialize_dict(command.payload, rx_schema)
+            params, rest = deserialize_dict(command.payload, rx_schema)
         except Exception:
             LOGGER.warning("Failed to parse command %s", command, exc_info=True)
 
