@@ -95,30 +95,41 @@ class FormNetwork(t.Struct):
 
 
 class CommandId(t.enum16):
-    networkinit = 0x0000
+    network_init = 0x0000
     start = 0x0001
     device_state = 0x0002
     change_network_state = 0x0003
     form_network = 0x0004
     permit_joining = 0x0005
+    join_network = 0x0006
+    leave_network = 0x0007
+    start_scan = 0x0008
+    scan_complete_handler = 0x0009
+    stop_scan = 0x000A
     panid_get = 0x000B
     panid_set = 0x000C
     extpanid_get = 0x000D
     extpanid_set = 0x000E
-    channel_mask_get = 0x000F
-    channel_mask_set = 0x0010
+    primary_channel_mask_get = 0x000F
+    primary_channel_mask_set = 0x0010
+    secondary_channel_mask_get = 0x0011
+    secondary_channel_mask_set = 0x0012
     current_channel_get = 0x0013
     current_channel_set = 0x0014
+    tx_power_get = 0x0015
+    tx_power_set = 0x0016
     network_key_get = 0x0017
     network_key_set = 0x0018
     nwk_frame_counter_get = 0x0019
     nwk_frame_counter_set = 0x001A
-    aps_designed_coordinator_get = 0x001B
-    aps_designed_coordinator_set = 0x001C
+    network_role_get = 0x001B
+    network_role_set = 0x001C
     short_addr_get = 0x001D
     short_addr_set = 0x001E
     long_addr_get = 0x001F
     long_addr_set = 0x0020
+    channel_masks_get = 0x0021
+    channel_masks_set = 0x0022
     nwk_update_id_get = 0x0023
     nwk_update_id_set = 0x0024
     trust_center_address_get = 0x0025
@@ -128,7 +139,20 @@ class CommandId(t.enum16):
     security_mode_get = 0x0029
     security_mode_set = 0x002A
     use_predefined_nwk_panid_set = 0x002B
-    addendpoint = 0x0100
+    short_to_ieee = 0x002C
+    ieee_to_short = 0x002D
+    add_endpoint = 0x0100
+    remove_endpoint = 0x0101
+    attribute_read = 0x0102
+    attribute_write = 0x0103
+    attribute_report = 0x0104
+    attribute_discover = 0x0105
+    aps_read = 0x0106
+    aps_write = 0x0107
+    report_config = 0x0108
+    bind_set = 0x0200
+    unbind_set = 0x0201
+    find_match = 0x0202
     aps_data_request = 0x0300
     aps_data_indication = 0x0301
     aps_data_confirm = 0x0302
@@ -173,7 +197,7 @@ class Command(t.Struct):
 
 
 COMMAND_SCHEMAS = {
-    CommandId.networkinit: (
+    CommandId.network_init: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
@@ -299,14 +323,14 @@ COMMAND_SCHEMAS = {
         },
         {},
     ),
-    CommandId.channel_mask_get: (
+    CommandId.primary_channel_mask_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
         {"payload_length": t.uint16_t, "channel_mask": t.uint32_t},
         {},
     ),
-    CommandId.channel_mask_set: (
+    CommandId.primary_channel_mask_set: (
         {"payload_length": PAYLOAD_LENGTH, "channel_mask": t.Channels},
         {
             "payload_length": t.uint16_t,
@@ -314,7 +338,7 @@ COMMAND_SCHEMAS = {
         },
         {},
     ),
-    CommandId.addendpoint: (
+    CommandId.add_endpoint: (
         {
             "payload_length": PAYLOAD_LENGTH,
             "endpoint": t.uint8_t,
@@ -477,14 +501,14 @@ COMMAND_SCHEMAS = {
         },
         {},
     ),
-    CommandId.aps_designed_coordinator_get: (
+    CommandId.network_role_get: (
         {
             "payload_length": PAYLOAD_LENGTH,
         },
         {"payload_length": t.uint16_t, "role": t.uint8_t},
         {},
     ),
-    CommandId.aps_designed_coordinator_set: (
+    CommandId.network_role_set: (
         {"payload_length": PAYLOAD_LENGTH, "role": t.uint8_t},
         {
             "payload_length": t.uint16_t,
@@ -877,7 +901,7 @@ class Znsp:
         self._handle_device_state_changed(status=status, device_state=device_state)
 
     async def network_init(self):
-        await self.send_command(CommandId.networkinit)
+        await self.send_command(CommandId.network_init)
         await self.form_network(
             FormNetwork(
                 role=DeviceType.COORDINATOR, policy=False, nwk_cfg0=0x14, nwk_cfg1=0
@@ -889,7 +913,7 @@ class Znsp:
 
     async def channel_mask(self):
         rssult = []
-        rsp = await self.send_command(CommandId.channel_mask_get)
+        rsp = await self.send_command(CommandId.primary_channel_mask_get)
 
         for index in range(32):
             if (rsp["channel_mask"] & (1 << index)) != 0:
@@ -899,7 +923,7 @@ class Znsp:
 
     async def set_channel_mask(self, parameter: t.Channels):
         rsp = await self.send_command(
-            CommandId.channel_mask_set, channel_mask=parameter
+            CommandId.primary_channel_mask_set, channel_mask=parameter
         )
 
         return rsp["status"]
@@ -1049,7 +1073,7 @@ class Znsp:
             return Status.SUCCESS
 
         rsp = await self.send_command(
-            CommandId.addendpoint,
+            CommandId.add_endpoint,
             endpoint=endpoint,
             profileId=profile,
             deviceId=device_type,
@@ -1088,7 +1112,7 @@ class Znsp:
 
     async def aps_designed_coordinator(self):
         rsp = await self.send_command(
-            CommandId.aps_designed_coordinator_get,
+            CommandId.network_role_get,
             reserved=0,
         )
 
@@ -1096,7 +1120,7 @@ class Znsp:
 
     async def set_aps_designed_coordinator(self, parameter: t.uint8_t):
         rsp = await self.send_command(
-            CommandId.aps_designed_coordinator_set,
+            CommandId.network_role_set,
             role=parameter,
         )
 
