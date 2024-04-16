@@ -187,6 +187,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await self._api.set_channel(network_info.channel)
 
         # TODO: Network settings do not persist. How do you write them?
+        await self._api.start(autostart=True)
+
         await self._api.reset()
         await self._api.network_init()
         await self._api.form_network(role=DeviceType.COORDINATOR)
