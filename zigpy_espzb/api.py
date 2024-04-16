@@ -16,13 +16,7 @@ else:
 from zigpy.config import CONF_DEVICE_PATH
 import zigpy.types as t
 
-from zigpy_espzb.commands import (
-    COMMAND_SCHEMAS,
-    Command,
-    CommandId,
-    FormNetwork,
-    FrameType,
-)
+from zigpy_espzb.commands import COMMAND_SCHEMAS, Command, CommandId, FrameType
 from zigpy_espzb.exception import APIException, CommandError
 from zigpy_espzb.types import (
     Bytes,
@@ -309,13 +303,11 @@ class Znsp:
     ) -> None:
         rsp = await self.send_command(
             CommandId.form_network,
-            form_nwk=FormNetwork(
-                role=role,
-                install_code_policy=install_code_policy,
-                max_children=max_children,
-                ed_timeout=ed_timeout,
-                keep_alive=keep_alive,
-            ),
+            role=role,
+            install_code_policy=install_code_policy,
+            max_children=max_children,
+            ed_timeout=ed_timeout,
+            keep_alive=keep_alive,
         )
 
         # TODO: wait for the `form_network` indication as well?

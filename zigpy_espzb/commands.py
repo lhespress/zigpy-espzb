@@ -95,24 +95,6 @@ class Command(t.Struct):
     payload: Bytes
 
 
-class FormNetwork(t.Struct):
-    role: DeviceType
-    install_code_policy: t.Bool
-
-    # For coordinators/routers
-    max_children: t.uint8_t = t.StructField(
-        requires=lambda f: f.role in (DeviceType.ROUTER, DeviceType.COORDINATOR)
-    )
-
-    # For end devices
-    ed_timeout: t.uint8_t = t.StructField(
-        requires=lambda f: f.role == DeviceType.END_DEVICE
-    )
-    keep_alive: t.uint32_t = t.StructField(
-        requires=lambda f: f.role == DeviceType.END_DEVICE
-    )
-
-
 class NetworkInitReq(t.Struct):
     pass
 
@@ -138,7 +120,21 @@ class StartInd(t.Struct):
 
 
 class FormNetworkReq(t.Struct):
-    form_nwk: FormNetwork
+    role: DeviceType
+    install_code_policy: t.Bool
+
+    # For coordinators/routers
+    max_children: t.uint8_t = t.StructField(
+        requires=lambda f: f.role in (DeviceType.ROUTER, DeviceType.COORDINATOR)
+    )
+
+    # For end devices
+    ed_timeout: t.uint8_t = t.StructField(
+        requires=lambda f: f.role == DeviceType.END_DEVICE
+    )
+    keep_alive: t.uint32_t = t.StructField(
+        requires=lambda f: f.role == DeviceType.END_DEVICE
+    )
 
 
 class FormNetworkRsp(t.Struct):
