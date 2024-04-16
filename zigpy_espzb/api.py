@@ -811,6 +811,9 @@ class Znsp:
             ),
         )
 
+        # TODO: wait for the `form_network` indication as well?
+        await asyncio.sleep(2)
+
         return rsp["status"]
 
     async def leave_network(self) -> None:
@@ -818,6 +821,9 @@ class Znsp:
 
     async def start(self, autostart: bool) -> Status:
         rsp = await self.send_command(CommandId.start, autostart=t.uint8_t(autostart))
+
+        # TODO: wait for the `form_network` indication as well?
+        await asyncio.sleep(2)
 
         return rsp["status"]
 
