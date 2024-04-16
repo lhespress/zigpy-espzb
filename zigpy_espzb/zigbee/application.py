@@ -160,19 +160,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         await self._api.set_use_predefined_nwk_panid(True)
         await self._api.set_nwk_panid(network_info.pan_id)
-
-        # TODO: Why does setting the extended PAN ID trigger a crash?
-        #   Unknown command received: Command(
-        #     version=0,
-        #     frame_type=<FrameType.Response: 1>,
-        #     reserved=0,
-        #     command_id=<CommandId.undefined_0xffff: 65535>,
-        #     seq=123,
-        #     length=1,
-        #     payload=b'\x02'
-        #   )
-
-        # await self._api.set_nwk_extended_panid(network_info.extended_pan_id)
+        await self._api.set_nwk_extended_panid(network_info.extended_pan_id)
         await self._api.set_nwk_update_id(network_info.nwk_update_id)
         await self._api.set_network_key(network_info.network_key.key)
         await self._api.set_nwk_frame_counter(network_info.network_key.tx_counter)
