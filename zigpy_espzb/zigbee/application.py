@@ -25,8 +25,13 @@ import zigpy.types as t
 import zigpy.util
 import zigpy.zdo.types as zdo_t
 
-from zigpy_espzb.api import DeviceType, NetworkState, SecurityMode, Znsp
-import zigpy_espzb.types as espzb_t
+from zigpy_espzb.api import Znsp
+from zigpy_espzb.types import (
+    DeviceType,
+    NetworkState,
+    SecurityMode,
+    ZnspTransmitOptions,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -307,13 +312,13 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         if packet.source_route is not None:
             force_relays = packet.source_route
 
-        tx_options = espzb_t.ZnspTransmitOptions.NONE
+        tx_options = ZnspTransmitOptions.NONE
 
         if zigpy.types.TransmitOptions.ACK in packet.tx_options:
-            tx_options |= espzb_t.ZnspTransmitOptions.ACK_ENABLED
+            tx_options |= ZnspTransmitOptions.ACK_ENABLED
 
         if zigpy.types.TransmitOptions.APS_Encryption in packet.tx_options:
-            tx_options |= espzb_t.ZnspTransmitOptions.SECURITY_ENABLED
+            tx_options |= ZnspTransmitOptions.SECURITY_ENABLED
 
         async with self._limit_concurrency():
             await self._api.aps_data_request(

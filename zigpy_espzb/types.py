@@ -115,3 +115,59 @@ class ShiftedChannels(t.bitmap32):
     def from_zigpy_channels(cls, channels: t.Channels) -> ShiftedChannels:
         """Convert a Zigpy Channels to a ShiftedChannels."""
         return cls.from_channel_list(tuple(channels))
+
+
+class DeviceType(t.enum8):
+    COORDINATOR = 0x00
+    ROUTER = 0x01
+    END_DEVICE = 0x02
+    NONE = 0x03
+
+
+class Status(t.enum8):
+    SUCCESS = 0
+    FAILURE = 1
+    INVALID_VALUE = 2
+    TIMEOUT = 3
+    UNSUPPORTED = 4
+    ERROR = 5
+    NO_NETWORK = 6
+    BUSY = 7
+
+
+class FirmwareVersion(t.Struct, t.uint32_t):
+    reserved: t.uint8_t
+    patch: t.uint8_t
+    minor: t.uint8_t
+    major: t.uint8_t
+
+
+class NetworkState(t.enum8):
+    OFFLINE = 0
+    JOINING = 1
+    CONNECTED = 2
+    LEAVING = 3
+    CONFIRM = 4
+    INDICATION = 5
+
+
+class SecurityMode(t.enum8):
+    NO_SECURITY = 0x00
+    PRECONFIGURED_NETWORK_KEY = 0x01
+
+
+class ZDPResponseHandling(t.bitmap16):
+    NONE = 0x0000
+    NodeDescRsp = 0x0001
+
+
+class TXStatus(t.enum8):
+    SUCCESS = 0x00
+
+    @classmethod
+    def _missing_(cls, value):
+        chained = t.APSStatus(value)
+        status = t.uint8_t.__new__(cls, chained.value)
+        status._name_ = chained.name
+        status._value_ = value
+        return status
