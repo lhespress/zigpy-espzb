@@ -84,7 +84,7 @@ class FrameType(t.enum4):
     Indicate = 2
 
 
-class Command(t.Struct):
+class CommandFrame(t.Struct):
     version: t.uint4_t
     frame_type: FrameType
     reserved: t.uint8_t
@@ -95,31 +95,35 @@ class Command(t.Struct):
     payload: Bytes
 
 
-class NetworkInitReq(t.Struct):
+class BaseCommand(t.Struct):
     pass
 
 
-class NetworkInitRsp(t.Struct):
+class NetworkInitReq(BaseCommand):
+    pass
+
+
+class NetworkInitRsp(BaseCommand):
     status: Status
 
 
-class NetworkInitInd(t.Struct):
+class NetworkInitInd(BaseCommand):
     pass
 
 
-class StartReq(t.Struct):
+class StartReq(BaseCommand):
     autostart: t.Bool
 
 
-class StartRsp(t.Struct):
+class StartRsp(BaseCommand):
     status: Status
 
 
-class StartInd(t.Struct):
+class StartInd(BaseCommand):
     pass
 
 
-class FormNetworkReq(t.Struct):
+class FormNetworkReq(BaseCommand):
     role: DeviceType
     install_code_policy: t.Bool
 
@@ -137,187 +141,187 @@ class FormNetworkReq(t.Struct):
     )
 
 
-class FormNetworkRsp(t.Struct):
+class FormNetworkRsp(BaseCommand):
     status: Status
 
 
-class FormNetworkInd(t.Struct):
+class FormNetworkInd(BaseCommand):
     extended_panid: t.EUI64
     panid: t.PanId
     channel: t.uint8_t
 
 
-class PermitJoiningReq(t.Struct):
+class PermitJoiningReq(BaseCommand):
     duration: t.uint8_t
 
 
-class PermitJoiningRsp(t.Struct):
+class PermitJoiningRsp(BaseCommand):
     status: Status
 
 
-class PermitJoiningInd(t.Struct):
+class PermitJoiningInd(BaseCommand):
     duration: t.uint8_t
 
 
-class LeaveNetworkReq(t.Struct):
+class LeaveNetworkReq(BaseCommand):
     pass
 
 
-class LeaveNetworkRsp(t.Struct):
+class LeaveNetworkRsp(BaseCommand):
     status: Status
 
 
-class LeaveNetworkInd(t.Struct):
+class LeaveNetworkInd(BaseCommand):
     short_addr: t.NWK
     device_addr: t.EUI64
     rejoin: t.Bool
 
 
-class ExtpanidGetReq(t.Struct):
+class ExtpanidGetReq(BaseCommand):
     pass
 
 
-class ExtpanidGetRsp(t.Struct):
+class ExtpanidGetRsp(BaseCommand):
     ieee: t.EUI64
 
 
-class ExtpanidGetInd(t.Struct):
+class ExtpanidGetInd(BaseCommand):
     pass
 
 
-class ExtpanidSetReq(t.Struct):
+class ExtpanidSetReq(BaseCommand):
     ieee: t.EUI64
 
 
-class ExtpanidSetRsp(t.Struct):
+class ExtpanidSetRsp(BaseCommand):
     status: Status
 
 
-class ExtpanidSetInd(t.Struct):
+class ExtpanidSetInd(BaseCommand):
     pass
 
 
-class PanidGetReq(t.Struct):
+class PanidGetReq(BaseCommand):
     pass
 
 
-class PanidGetRsp(t.Struct):
+class PanidGetRsp(BaseCommand):
     panid: t.PanId
 
 
-class PanidGetInd(t.Struct):
+class PanidGetInd(BaseCommand):
     pass
 
 
-class PanidSetReq(t.Struct):
+class PanidSetReq(BaseCommand):
     panid: t.PanId
 
 
-class PanidSetRsp(t.Struct):
+class PanidSetRsp(BaseCommand):
     status: Status
 
 
-class PanidSetInd(t.Struct):
+class PanidSetInd(BaseCommand):
     pass
 
 
-class ShortAddrGetReq(t.Struct):
+class ShortAddrGetReq(BaseCommand):
     pass
 
 
-class ShortAddrGetRsp(t.Struct):
+class ShortAddrGetRsp(BaseCommand):
     short_addr: t.NWK
 
 
-class ShortAddrGetInd(t.Struct):
+class ShortAddrGetInd(BaseCommand):
     pass
 
 
-class ShortAddrSetReq(t.Struct):
+class ShortAddrSetReq(BaseCommand):
     short_addr: t.NWK
 
 
-class ShortAddrSetRsp(t.Struct):
+class ShortAddrSetRsp(BaseCommand):
     status: Status
 
 
-class ShortAddrSetInd(t.Struct):
+class ShortAddrSetInd(BaseCommand):
     pass
 
 
-class LongAddrGetReq(t.Struct):
+class LongAddrGetReq(BaseCommand):
     pass
 
 
-class LongAddrGetRsp(t.Struct):
+class LongAddrGetRsp(BaseCommand):
     ieee: t.EUI64
 
 
-class LongAddrGetInd(t.Struct):
+class LongAddrGetInd(BaseCommand):
     pass
 
 
-class LongAddrSetReq(t.Struct):
+class LongAddrSetReq(BaseCommand):
     ieee: t.EUI64
 
 
-class LongAddrSetRsp(t.Struct):
+class LongAddrSetRsp(BaseCommand):
     status: Status
 
 
-class LongAddrSetInd(t.Struct):
+class LongAddrSetInd(BaseCommand):
     pass
 
 
-class CurrentChannelGetReq(t.Struct):
+class CurrentChannelGetReq(BaseCommand):
     pass
 
 
-class CurrentChannelGetRsp(t.Struct):
+class CurrentChannelGetRsp(BaseCommand):
     channel: t.uint8_t
 
 
-class CurrentChannelGetInd(t.Struct):
+class CurrentChannelGetInd(BaseCommand):
     pass
 
 
-class CurrentChannelSetReq(t.Struct):
+class CurrentChannelSetReq(BaseCommand):
     channel: t.uint8_t
 
 
-class CurrentChannelSetRsp(t.Struct):
+class CurrentChannelSetRsp(BaseCommand):
     status: Status
 
 
-class CurrentChannelSetInd(t.Struct):
+class CurrentChannelSetInd(BaseCommand):
     pass
 
 
-class PrimaryChannelMaskGetReq(t.Struct):
+class PrimaryChannelMaskGetReq(BaseCommand):
     pass
 
 
-class PrimaryChannelMaskGetRsp(t.Struct):
+class PrimaryChannelMaskGetRsp(BaseCommand):
     channel_mask: ShiftedChannels
 
 
-class PrimaryChannelMaskGetInd(t.Struct):
+class PrimaryChannelMaskGetInd(BaseCommand):
     pass
 
 
-class PrimaryChannelMaskSetReq(t.Struct):
+class PrimaryChannelMaskSetReq(BaseCommand):
     channel_mask: ShiftedChannels
 
 
-class PrimaryChannelMaskSetRsp(t.Struct):
+class PrimaryChannelMaskSetRsp(BaseCommand):
     status: Status
 
 
-class PrimaryChannelMaskSetInd(t.Struct):
+class PrimaryChannelMaskSetInd(BaseCommand):
     pass
 
 
-class AddEndpointReq(t.Struct):
+class AddEndpointReq(BaseCommand):
     endpoint: t.uint8_t
     profile_id: t.uint16_t
     device_id: t.uint16_t
@@ -328,39 +332,39 @@ class AddEndpointReq(t.Struct):
     output_cluster_list: t.List[t.uint16_t]
 
 
-class AddEndpointRsp(t.Struct):
+class AddEndpointRsp(BaseCommand):
     status: Status
 
 
-class AddEndpointInd(t.Struct):
+class AddEndpointInd(BaseCommand):
     pass
 
 
-class NetworkStateReq(t.Struct):
+class NetworkStateReq(BaseCommand):
     pass
 
 
-class NetworkStateRsp(t.Struct):
+class NetworkStateRsp(BaseCommand):
     network_state: NetworkState
 
 
-class NetworkStateInd(t.Struct):
+class NetworkStateInd(BaseCommand):
     pass
 
 
-class StackStatusHandlerReq(t.Struct):
+class StackStatusHandlerReq(BaseCommand):
     pass
 
 
-class StackStatusHandlerRsp(t.Struct):
+class StackStatusHandlerRsp(BaseCommand):
     network_state: t.uint8_t
 
 
-class StackStatusHandlerInd(t.Struct):
+class StackStatusHandlerInd(BaseCommand):
     network_state: t.uint8_t
 
 
-class ApsDataRequestReq(t.Struct):
+class ApsDataRequestReq(BaseCommand):
     dst_addr: t.EUI64
     dst_endpoint: t.uint8_t
     src_endpoint: t.uint8_t
@@ -376,19 +380,19 @@ class ApsDataRequestReq(t.Struct):
     asdu: Bytes
 
 
-class ApsDataRequestRsp(t.Struct):
+class ApsDataRequestRsp(BaseCommand):
     status: Status
 
 
-class ApsDataRequestInd(t.Struct):
+class ApsDataRequestInd(BaseCommand):
     pass
 
 
-class ApsDataIndicationReq(t.Struct):
+class ApsDataIndicationReq(BaseCommand):
     pass
 
 
-class ApsDataIndicationRsp(t.Struct):
+class ApsDataIndicationRsp(BaseCommand):
     network_state: NetworkState
     dst_addr_mode: ExtendedAddrMode
     dst_addr: t.EUI64
@@ -406,7 +410,7 @@ class ApsDataIndicationRsp(t.Struct):
     asdu: Bytes
 
 
-class ApsDataIndicationInd(t.Struct):
+class ApsDataIndicationInd(BaseCommand):
     network_state: NetworkState
     dst_addr_mode: ExtendedAddrMode
     dst_addr: t.EUI64
@@ -424,11 +428,11 @@ class ApsDataIndicationInd(t.Struct):
     asdu: Bytes
 
 
-class ApsDataConfirmReq(t.Struct):
+class ApsDataConfirmReq(BaseCommand):
     pass
 
 
-class ApsDataConfirmRsp(t.Struct):
+class ApsDataConfirmRsp(BaseCommand):
     network_state: NetworkState
     dst_addr_mode: ExtendedAddrMode
     dst_addr: t.EUI64
@@ -441,7 +445,7 @@ class ApsDataConfirmRsp(t.Struct):
     asdu: Bytes
 
 
-class ApsDataConfirmInd(t.Struct):
+class ApsDataConfirmInd(BaseCommand):
     network_state: NetworkState
     dst_addr_mode: ExtendedAddrMode
     dst_addr: t.EUI64
@@ -453,184 +457,184 @@ class ApsDataConfirmInd(t.Struct):
     asdu: Bytes
 
 
-class NetworkKeyGetReq(t.Struct):
+class NetworkKeyGetReq(BaseCommand):
     pass
 
 
-class NetworkKeyGetRsp(t.Struct):
+class NetworkKeyGetRsp(BaseCommand):
     nwk_key: t.KeyData
 
 
-class NetworkKeyGetInd(t.Struct):
+class NetworkKeyGetInd(BaseCommand):
     pass
 
 
-class NetworkKeySetReq(t.Struct):
+class NetworkKeySetReq(BaseCommand):
     nwk_key: t.KeyData
 
 
-class NetworkKeySetRsp(t.Struct):
+class NetworkKeySetRsp(BaseCommand):
     status: Status
 
 
-class NetworkKeySetInd(t.Struct):
+class NetworkKeySetInd(BaseCommand):
     pass
 
 
-class NwkFrameCounterGetReq(t.Struct):
+class NwkFrameCounterGetReq(BaseCommand):
     pass
 
 
-class NwkFrameCounterGetRsp(t.Struct):
+class NwkFrameCounterGetRsp(BaseCommand):
     nwk_frame_counter: t.uint32_t
 
 
-class NwkFrameCounterGetInd(t.Struct):
+class NwkFrameCounterGetInd(BaseCommand):
     pass
 
 
-class NwkFrameCounterSetReq(t.Struct):
+class NwkFrameCounterSetReq(BaseCommand):
     nwk_frame_counter: t.uint32_t
 
 
-class NwkFrameCounterSetRsp(t.Struct):
+class NwkFrameCounterSetRsp(BaseCommand):
     status: Status
 
 
-class NwkFrameCounterSetInd(t.Struct):
+class NwkFrameCounterSetInd(BaseCommand):
     pass
 
 
-class NetworkRoleGetReq(t.Struct):
+class NetworkRoleGetReq(BaseCommand):
     pass
 
 
-class NetworkRoleGetRsp(t.Struct):
+class NetworkRoleGetRsp(BaseCommand):
     role: DeviceType
 
 
-class NetworkRoleGetInd(t.Struct):
+class NetworkRoleGetInd(BaseCommand):
     pass
 
 
-class NetworkRoleSetReq(t.Struct):
+class NetworkRoleSetReq(BaseCommand):
     role: DeviceType
 
 
-class NetworkRoleSetRsp(t.Struct):
+class NetworkRoleSetRsp(BaseCommand):
     status: Status
 
 
-class NetworkRoleSetInd(t.Struct):
+class NetworkRoleSetInd(BaseCommand):
     pass
 
 
-class UsePredefinedNwkPanidSetReq(t.Struct):
+class UsePredefinedNwkPanidSetReq(BaseCommand):
     predefined: t.Bool
 
 
-class UsePredefinedNwkPanidSetRsp(t.Struct):
+class UsePredefinedNwkPanidSetRsp(BaseCommand):
     status: Status
 
 
-class UsePredefinedNwkPanidSetInd(t.Struct):
+class UsePredefinedNwkPanidSetInd(BaseCommand):
     pass
 
 
-class NwkUpdateIdGetReq(t.Struct):
+class NwkUpdateIdGetReq(BaseCommand):
     pass
 
 
-class NwkUpdateIdGetRsp(t.Struct):
+class NwkUpdateIdGetRsp(BaseCommand):
     nwk_update_id: t.uint8_t
 
 
-class NwkUpdateIdGetInd(t.Struct):
+class NwkUpdateIdGetInd(BaseCommand):
     pass
 
 
-class NwkUpdateIdSetReq(t.Struct):
+class NwkUpdateIdSetReq(BaseCommand):
     nwk_update_id: t.uint8_t
 
 
-class NwkUpdateIdSetRsp(t.Struct):
+class NwkUpdateIdSetRsp(BaseCommand):
     status: Status
 
 
-class NwkUpdateIdSetInd(t.Struct):
+class NwkUpdateIdSetInd(BaseCommand):
     pass
 
 
-class TrustCenterAddressGetReq(t.Struct):
+class TrustCenterAddressGetReq(BaseCommand):
     pass
 
 
-class TrustCenterAddressGetRsp(t.Struct):
+class TrustCenterAddressGetRsp(BaseCommand):
     trust_center_addr: t.EUI64
 
 
-class TrustCenterAddressGetInd(t.Struct):
+class TrustCenterAddressGetInd(BaseCommand):
     pass
 
 
-class TrustCenterAddressSetReq(t.Struct):
+class TrustCenterAddressSetReq(BaseCommand):
     trust_center_addr: t.EUI64
 
 
-class TrustCenterAddressSetRsp(t.Struct):
+class TrustCenterAddressSetRsp(BaseCommand):
     status: Status
 
 
-class TrustCenterAddressSetInd(t.Struct):
+class TrustCenterAddressSetInd(BaseCommand):
     pass
 
 
-class LinkKeyGetReq(t.Struct):
+class LinkKeyGetReq(BaseCommand):
     pass
 
 
-class LinkKeyGetRsp(t.Struct):
+class LinkKeyGetRsp(BaseCommand):
     ieee: t.EUI64
     key: t.KeyData
 
 
-class LinkKeyGetInd(t.Struct):
+class LinkKeyGetInd(BaseCommand):
     pass
 
 
-class LinkKeySetReq(t.Struct):
+class LinkKeySetReq(BaseCommand):
     key: t.KeyData
 
 
-class LinkKeySetRsp(t.Struct):
+class LinkKeySetRsp(BaseCommand):
     status: Status
 
 
-class LinkKeySetInd(t.Struct):
+class LinkKeySetInd(BaseCommand):
     pass
 
 
-class SecurityModeGetReq(t.Struct):
+class SecurityModeGetReq(BaseCommand):
     pass
 
 
-class SecurityModeGetRsp(t.Struct):
+class SecurityModeGetRsp(BaseCommand):
     security_mode: SecurityMode
 
 
-class SecurityModeGetInd(t.Struct):
+class SecurityModeGetInd(BaseCommand):
     pass
 
 
-class SecurityModeSetReq(t.Struct):
+class SecurityModeSetReq(BaseCommand):
     security_mode: SecurityMode
 
 
-class SecurityModeSetRsp(t.Struct):
+class SecurityModeSetRsp(BaseCommand):
     status: Status
 
 
-class SecurityModeSetInd(t.Struct):
+class SecurityModeSetInd(BaseCommand):
     pass
 
 
@@ -825,4 +829,8 @@ COMMAND_SCHEMAS = {
         SecurityModeSetRsp,
         SecurityModeSetInd,
     ),
+}
+
+COMMAND_SCHEMA_TO_COMMAND_ID = {
+    req: command_id for command_id, (req, _, _) in COMMAND_SCHEMAS.items()
 }

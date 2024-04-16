@@ -16,7 +16,13 @@ else:
 from zigpy.config import CONF_DEVICE_PATH
 import zigpy.types as t
 
-from zigpy_espzb.commands import COMMAND_SCHEMAS, Command, CommandId, FrameType
+from zigpy_espzb import commands
+from zigpy_espzb.commands import (
+    COMMAND_SCHEMA_TO_COMMAND_ID,
+    COMMAND_SCHEMAS,
+    CommandFrame,
+    FrameType,
+)
 from zigpy_espzb.exception import APIException, CommandError
 from zigpy_espzb.types import (
     Bytes,
@@ -101,17 +107,15 @@ class Znsp:
             self._uart.close()
             self._uart = None
 
-    async def send_command(self, cmd, **kwargs):
-        tx_schema, _, _ = COMMAND_SCHEMAS[cmd]
+    async def send_command(self, command: t.Struct):
+        command_id = COMMAND_SCHEMA_TO_COMMAND_ID[type(command)]
+        serialized_payload = command.serialize()
 
-        params = tx_schema(**kwargs)
-        serialized_payload = params.serialize()
-
-        command = Command(
+        command_frame = CommandFrame(
             version=0b0000,
             frame_type=FrameType.Request,
             reserved=0x00,
-            command_id=cmd,
+            command_id=command_id,
             seq=None,
             length=len(serialized_payload),
             payload=serialized_payload,
@@ -124,25 +128,25 @@ class Znsp:
         async with self._command_lock:
             seq = self._seq
 
-            LOGGER.debug("Sending %s (seq=%s)", params, seq)
-            self._uart.send(command.replace(seq=seq).serialize())
+            LOGGER.debug("Sending %s (seq=%s)", command, seq)
+            self._uart.send(command_frame.replace(seq=seq).serialize())
 
             self._seq = (self._seq % 255) + 1
 
             fut = asyncio.Future()
-            self._awaiting[seq][cmd].append(fut)
+            self._awaiting[seq][command_id].append(fut)
 
             try:
                 async with asyncio_timeout(COMMAND_TIMEOUT):
                     return await fut
             except asyncio.TimeoutError:
-                LOGGER.debug("No response to '%s' command with seq %d", cmd, seq)
+                LOGGER.debug("No response to '%s' command with seq %d", command, seq)
                 raise
             finally:
-                self._awaiting[seq][cmd].remove(fut)
+                self._awaiting[seq][command_id].remove(fut)
 
     def data_received(self, data: bytes) -> None:
-        command, _ = Command.deserialize(data)
+        command, _ = CommandFrame.deserialize(data)
 
         if command.command_id not in COMMAND_SCHEMAS:
             LOGGER.warning("Unknown command received: %s", command)
@@ -276,20 +280,21 @@ class Znsp:
         self._handle_network_state_changed(network_state=network_state)
 
     async def network_init(self) -> None:
-        await self.send_command(CommandId.network_init)
+        await self.send_command(commands.NetworkInitReq())
 
     async def get_channel_mask(self) -> t.Channels:
-        rsp = await self.send_command(CommandId.primary_channel_mask_get)
+        rsp = await self.send_command(commands.PrimaryChannelMaskGetReq())
         return t.Channels.from_channel_list(tuple(rsp.channel_mask))
 
     async def set_channel_mask(self, channels: t.Channels) -> None:
         await self.send_command(
-            CommandId.primary_channel_mask_set,
-            channel_mask=ShiftedChannels.from_channel_list(channels),
+            commands.PrimaryChannelMaskSetReq(
+                channel_mask=ShiftedChannels.from_channel_list(channels)
+            )
         )
 
     async def set_channel(self, channel: int) -> None:
-        await self.send_command(CommandId.current_channel_set, channel=channel)
+        await self.send_command(commands.CurrentChannelSetReq(channel=channel))
 
     async def form_network(
         self,
@@ -301,140 +306,116 @@ class Znsp:
         ed_timeout: t.uint8_t = 0,
         keep_alive: t.uint32_t = 0,
     ) -> None:
-        rsp = await self.send_command(
-            CommandId.form_network,
-            role=role,
-            install_code_policy=install_code_policy,
-            max_children=max_children,
-            ed_timeout=ed_timeout,
-            keep_alive=keep_alive,
+        await self.send_command(
+            commands.FormNetworkReq(
+                role=role,
+                install_code_policy=install_code_policy,
+                max_children=max_children,
+                ed_timeout=ed_timeout,
+                keep_alive=keep_alive,
+            )
         )
 
         # TODO: wait for the `form_network` indication as well?
         await asyncio.sleep(2)
 
-        return rsp.status
-
     async def leave_network(self) -> None:
-        await self.send_command(CommandId.leave_network)
+        await self.send_command(commands.LeaveNetworkReq)
 
     async def start(self, autostart: bool) -> Status:
-        rsp = await self.send_command(CommandId.start, autostart=t.uint8_t(autostart))
+        await self.send_command(commands.StartReq(autostart=autostart))
 
         # TODO: wait for the `form_network` indication as well?
         await asyncio.sleep(2)
 
-        return rsp.status
-
     async def get_mac_address(self):
-        rsp = await self.send_command(CommandId.long_addr_get)
+        rsp = await self.send_command(commands.LongAddrGetReq())
 
         return rsp.ieee
 
     async def set_mac_address(self, parameter: t.EUI64):
-        rsp = await self.send_command(CommandId.long_addr_set, ieee=parameter)
-
-        return rsp.status
+        await self.send_command(commands.LongAddrSetReq(ieee=parameter))
 
     async def get_nwk_address(self):
-        rsp = await self.send_command(CommandId.short_addr_get)
+        rsp = await self.send_command(commands.ShortAddrGetReq())
 
         return rsp.short_addr
 
     async def set_nwk_address(self, parameter: t.uint16_t):
-        rsp = await self.send_command(CommandId.short_addr_set, short_addr=parameter)
-
-        return rsp.status
+        await self.send_command(commands.ShortAddrSetReq(short_addr=parameter))
 
     async def get_nwk_panid(self):
-        rsp = await self.send_command(CommandId.panid_get)
+        rsp = await self.send_command(commands.PanidGetReq())
 
         return rsp.panid
 
     async def set_nwk_panid(self, parameter: t.PanId):
-        rsp = await self.send_command(CommandId.panid_set, panid=parameter)
-
-        return rsp.status
+        await self.send_command(commands.PanidSetReq(panid=parameter))
 
     async def get_nwk_extended_panid(self):
-        rsp = await self.send_command(CommandId.extpanid_get)
+        rsp = await self.send_command(commands.ExtpanidGetReq())
 
         return rsp.ieee
 
     async def set_nwk_extended_panid(self, parameter: t.ExtendedPanId):
-        rsp = await self.send_command(CommandId.extpanid_set, ieee=parameter)
-
-        return rsp.status
+        await self.send_command(commands.ExtpanidSetReq(ieee=parameter))
 
     async def get_current_channel(self) -> int:
-        rsp = await self.send_command(CommandId.current_channel_get)
+        rsp = await self.send_command(commands.CurrentChannelGetReq())
 
         return rsp.channel
 
     async def get_nwk_update_id(self):
-        rsp = await self.send_command(CommandId.nwk_update_id_get)
+        rsp = await self.send_command(commands.NwkUpdateIdGetReq())
 
         return rsp.nwk_update_id
 
     async def set_nwk_update_id(self, parameter: t.uint8_t):
-        rsp = await self.send_command(
-            CommandId.nwk_update_id_set, nwk_update_id=parameter
-        )
-
-        return rsp.status
+        await self.send_command(commands.NwkUpdateIdSetReq(nwk_update_id=parameter))
 
     async def get_network_key(self):
-        rsp = await self.send_command(CommandId.network_key_get)
+        rsp = await self.send_command(commands.NetworkKeyGetReq())
 
         return rsp.nwk_key
 
     async def set_network_key(self, key: t.KeyData):
-        await self.send_command(CommandId.network_key_set, nwk_key=key)
+        await self.send_command(commands.NetworkKeySetReq(nwk_key=key))
 
     async def get_nwk_frame_counter(self):
-        rsp = await self.send_command(CommandId.nwk_frame_counter_get)
+        rsp = await self.send_command(commands.NwkFrameCounterGetReq())
 
         return rsp.nwk_frame_counter
 
-    async def set_nwk_frame_counter(self, parameter: t.uint32_t):
-        rsp = await self.send_command(
-            CommandId.nwk_frame_counter_set,
-            nwk_frame_counter=parameter,
+    async def set_nwk_frame_counter(self, counter: t.uint32_t):
+        await self.send_command(
+            commands.NwkFrameCounterSetReq(nwk_frame_counter=counter)
         )
 
-        return rsp.status
-
     async def get_trust_center_address(self):
-        rsp = await self.send_command(CommandId.trust_center_address_get)
+        rsp = await self.send_command(commands.TrustCenterAddressGetReq())
 
         return rsp.trust_center_addr
 
-    async def set_trust_center_address(self, parameter: t.EUI64):
-        rsp = await self.send_command(
-            CommandId.trust_center_address_set, trust_center_addr=parameter
+    async def set_trust_center_address(self, addr: t.EUI64) -> None:
+        await self.send_command(
+            commands.TrustCenterAddressSetReq(trust_center_addr=addr)
         )
 
-        return rsp.status
-
     async def get_link_key(self) -> Any:
-        rsp = await self.send_command(CommandId.link_key_get)
+        rsp = await self.send_command(commands.LinkKeyGetReq())
 
         return rsp.key
 
     async def set_link_key(self, key: t.KeyData):
-        await self.send_command(CommandId.link_key_set, key=key)
+        await self.send_command(commands.LinkKeySetReq(key=key))
 
     async def get_security_mode(self):
-        rsp = await self.send_command(CommandId.security_mode_get)
+        rsp = await self.send_command(commands.SecurityModeGetReq())
 
         return rsp.security_mode
 
-    async def set_security_mode(self, parameter: SecurityMode):
-        rsp = await self.send_command(
-            CommandId.security_mode_set, security_mode=parameter
-        )
-
-        return rsp.status
+    async def set_security_mode(self, mode: SecurityMode):
+        await self.send_command(commands.SecurityModeSetReq(security_mode=mode))
 
     async def add_endpoint(
         self,
@@ -446,57 +427,41 @@ class Znsp:
         output_clusters: list[t.ClusterId],
     ):
         if profile == 0xC05E:
-            return Status.SUCCESS
+            return
 
-        rsp = await self.send_command(
-            CommandId.add_endpoint,
-            endpoint=endpoint,
-            profile_id=profile,
-            device_id=device_type,
-            app_flags=device_version,
-            input_cluster_count=len(input_clusters),
-            output_cluster_count=len(output_clusters),
-            input_cluster_list=input_clusters,
-            output_cluster_list=output_clusters,
+        await self.send_command(
+            commands.AddEndpointReq(
+                endpoint=endpoint,
+                profile_id=profile,
+                device_id=device_type,
+                app_flags=device_version,
+                input_cluster_count=len(input_clusters),
+                output_cluster_count=len(output_clusters),
+                input_cluster_list=input_clusters,
+                output_cluster_list=output_clusters,
+            )
         )
 
-        return rsp.status
-
-    async def set_use_predefined_nwk_panid(self, parameter: t.Bool):
-        rsp = await self.send_command(
-            CommandId.use_predefined_nwk_panid_set,
-            predefined=parameter,
+    async def set_use_predefined_nwk_panid(self, use_predefined: t.Bool):
+        await self.send_command(
+            commands.UsePredefinedNwkPanidSetReq(
+                predefined=use_predefined,
+            )
         )
-
-        return rsp.status
 
     async def set_permit_join(self, duration: t.uint8_t):
-        rsp = await self.send_command(
-            CommandId.permit_joining,
-            duration=duration,
+        await self.send_command(
+            commands.PermitJoiningReq(
+                duration=duration,
+            )
         )
-
-        return rsp.status
-
-    async def set_watchdog_ttl(self, parameter: t.uint16_t):
-        rsp = await self.send_command(
-            CommandId.watchdog_ttl_set,
-            role=parameter,
-        )
-
-        return rsp.status
 
     async def get_network_role(self) -> DeviceType:
-        rsp = await self.send_command(CommandId.network_role_get)
+        rsp = await self.send_command(commands.NetworkRoleGetReq())
         return rsp.role
 
     async def set_network_role(self, role: DeviceType) -> None:
-        rsp = await self.send_command(
-            CommandId.network_role_set,
-            role=role,
-        )
-
-        return rsp.status
+        await self.send_command(commands.NetworkRoleSetReq(role=role))
 
     async def aps_data_request(
         self,
@@ -517,20 +482,21 @@ class Znsp:
         for delay in REQUEST_RETRY_DELAYS:
             try:
                 await self.send_command(
-                    CommandId.aps_data_request,
-                    dst_addr=dst_addr,
-                    dst_endpoint=dst_ep,
-                    src_endpoint=src_ep,
-                    address_mode=addr_mode,
-                    profile_id=profile,
-                    cluster_id=cluster,
-                    tx_options=options,
-                    use_alias=False,
-                    src_addr=src_addr,
-                    sequence=sequence,
-                    radius=radius,
-                    asdu_length=len(data),
-                    asdu=t.List(data),
+                    commands.ApsDataRequestReq(
+                        dst_addr=dst_addr,
+                        dst_endpoint=dst_ep,
+                        src_endpoint=src_ep,
+                        address_mode=addr_mode,
+                        profile_id=profile,
+                        cluster_id=cluster,
+                        tx_options=options,
+                        use_alias=False,
+                        src_addr=src_addr,
+                        sequence=sequence,
+                        radius=radius,
+                        asdu_length=len(data),
+                        asdu=t.List(data),
+                    )
                 )
             except CommandError as ex:
                 LOGGER.debug("'aps_data_request' failure: %s", ex)
@@ -543,7 +509,7 @@ class Znsp:
                 return
 
     async def get_network_state(self) -> NetworkState:
-        rsp = await self.send_command(CommandId.network_state)
+        rsp = await self.send_command(commands.NetworkStateReq())
 
         return rsp.network_state
 
