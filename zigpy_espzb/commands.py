@@ -107,20 +107,12 @@ class NetworkInitRsp(BaseCommand):
     status: Status
 
 
-class NetworkInitInd(BaseCommand):
-    pass
-
-
 class StartReq(BaseCommand):
     autostart: t.Bool
 
 
 class StartRsp(BaseCommand):
     status: Status
-
-
-class StartInd(BaseCommand):
-    pass
 
 
 class FormNetworkReq(BaseCommand):
@@ -185,20 +177,12 @@ class ExtpanidGetRsp(BaseCommand):
     ieee: t.EUI64
 
 
-class ExtpanidGetInd(BaseCommand):
-    pass
-
-
 class ExtpanidSetReq(BaseCommand):
     ieee: t.EUI64
 
 
 class ExtpanidSetRsp(BaseCommand):
     status: Status
-
-
-class ExtpanidSetInd(BaseCommand):
-    pass
 
 
 class PanidGetReq(BaseCommand):
@@ -209,20 +193,12 @@ class PanidGetRsp(BaseCommand):
     panid: t.PanId
 
 
-class PanidGetInd(BaseCommand):
-    pass
-
-
 class PanidSetReq(BaseCommand):
     panid: t.PanId
 
 
 class PanidSetRsp(BaseCommand):
     status: Status
-
-
-class PanidSetInd(BaseCommand):
-    pass
 
 
 class ShortAddrGetReq(BaseCommand):
@@ -233,20 +209,12 @@ class ShortAddrGetRsp(BaseCommand):
     short_addr: t.NWK
 
 
-class ShortAddrGetInd(BaseCommand):
-    pass
-
-
 class ShortAddrSetReq(BaseCommand):
     short_addr: t.NWK
 
 
 class ShortAddrSetRsp(BaseCommand):
     status: Status
-
-
-class ShortAddrSetInd(BaseCommand):
-    pass
 
 
 class LongAddrGetReq(BaseCommand):
@@ -257,20 +225,12 @@ class LongAddrGetRsp(BaseCommand):
     ieee: t.EUI64
 
 
-class LongAddrGetInd(BaseCommand):
-    pass
-
-
 class LongAddrSetReq(BaseCommand):
     ieee: t.EUI64
 
 
 class LongAddrSetRsp(BaseCommand):
     status: Status
-
-
-class LongAddrSetInd(BaseCommand):
-    pass
 
 
 class CurrentChannelGetReq(BaseCommand):
@@ -281,20 +241,12 @@ class CurrentChannelGetRsp(BaseCommand):
     channel: t.uint8_t
 
 
-class CurrentChannelGetInd(BaseCommand):
-    pass
-
-
 class CurrentChannelSetReq(BaseCommand):
     channel: t.uint8_t
 
 
 class CurrentChannelSetRsp(BaseCommand):
     status: Status
-
-
-class CurrentChannelSetInd(BaseCommand):
-    pass
 
 
 class PrimaryChannelMaskGetReq(BaseCommand):
@@ -305,20 +257,12 @@ class PrimaryChannelMaskGetRsp(BaseCommand):
     channel_mask: ShiftedChannels
 
 
-class PrimaryChannelMaskGetInd(BaseCommand):
-    pass
-
-
 class PrimaryChannelMaskSetReq(BaseCommand):
     channel_mask: ShiftedChannels
 
 
 class PrimaryChannelMaskSetRsp(BaseCommand):
     status: Status
-
-
-class PrimaryChannelMaskSetInd(BaseCommand):
-    pass
 
 
 class AddEndpointReq(BaseCommand):
@@ -336,20 +280,12 @@ class AddEndpointRsp(BaseCommand):
     status: Status
 
 
-class AddEndpointInd(BaseCommand):
-    pass
-
-
 class NetworkStateReq(BaseCommand):
     pass
 
 
 class NetworkStateRsp(BaseCommand):
     network_state: NetworkState
-
-
-class NetworkStateInd(BaseCommand):
-    pass
 
 
 class StackStatusHandlerReq(BaseCommand):
@@ -382,14 +318,6 @@ class ApsDataRequestReq(BaseCommand):
 
 class ApsDataRequestRsp(BaseCommand):
     status: Status
-
-
-class ApsDataRequestInd(BaseCommand):
-    pass
-
-
-class ApsDataIndicationReq(BaseCommand):
-    pass
 
 
 class ApsDataIndicationRsp(BaseCommand):
@@ -465,20 +393,12 @@ class NetworkKeyGetRsp(BaseCommand):
     nwk_key: t.KeyData
 
 
-class NetworkKeyGetInd(BaseCommand):
-    pass
-
-
 class NetworkKeySetReq(BaseCommand):
     nwk_key: t.KeyData
 
 
 class NetworkKeySetRsp(BaseCommand):
     status: Status
-
-
-class NetworkKeySetInd(BaseCommand):
-    pass
 
 
 class NwkFrameCounterGetReq(BaseCommand):
@@ -489,20 +409,12 @@ class NwkFrameCounterGetRsp(BaseCommand):
     nwk_frame_counter: t.uint32_t
 
 
-class NwkFrameCounterGetInd(BaseCommand):
-    pass
-
-
 class NwkFrameCounterSetReq(BaseCommand):
     nwk_frame_counter: t.uint32_t
 
 
 class NwkFrameCounterSetRsp(BaseCommand):
     status: Status
-
-
-class NwkFrameCounterSetInd(BaseCommand):
-    pass
 
 
 class NetworkRoleGetReq(BaseCommand):
@@ -513,20 +425,12 @@ class NetworkRoleGetRsp(BaseCommand):
     role: DeviceType
 
 
-class NetworkRoleGetInd(BaseCommand):
-    pass
-
-
 class NetworkRoleSetReq(BaseCommand):
     role: DeviceType
 
 
 class NetworkRoleSetRsp(BaseCommand):
     status: Status
-
-
-class NetworkRoleSetInd(BaseCommand):
-    pass
 
 
 class UsePredefinedNwkPanidSetReq(BaseCommand):
@@ -537,20 +441,12 @@ class UsePredefinedNwkPanidSetRsp(BaseCommand):
     status: Status
 
 
-class UsePredefinedNwkPanidSetInd(BaseCommand):
-    pass
-
-
 class NwkUpdateIdGetReq(BaseCommand):
     pass
 
 
 class NwkUpdateIdGetRsp(BaseCommand):
     nwk_update_id: t.uint8_t
-
-
-class NwkUpdateIdGetInd(BaseCommand):
-    pass
 
 
 class NwkUpdateIdSetReq(BaseCommand):
@@ -561,10 +457,6 @@ class NwkUpdateIdSetRsp(BaseCommand):
     status: Status
 
 
-class NwkUpdateIdSetInd(BaseCommand):
-    pass
-
-
 class TrustCenterAddressGetReq(BaseCommand):
     pass
 
@@ -573,20 +465,12 @@ class TrustCenterAddressGetRsp(BaseCommand):
     trust_center_addr: t.EUI64
 
 
-class TrustCenterAddressGetInd(BaseCommand):
-    pass
-
-
 class TrustCenterAddressSetReq(BaseCommand):
     trust_center_addr: t.EUI64
 
 
 class TrustCenterAddressSetRsp(BaseCommand):
     status: Status
-
-
-class TrustCenterAddressSetInd(BaseCommand):
-    pass
 
 
 class LinkKeyGetReq(BaseCommand):
@@ -598,20 +482,12 @@ class LinkKeyGetRsp(BaseCommand):
     key: t.KeyData
 
 
-class LinkKeyGetInd(BaseCommand):
-    pass
-
-
 class LinkKeySetReq(BaseCommand):
     key: t.KeyData
 
 
 class LinkKeySetRsp(BaseCommand):
     status: Status
-
-
-class LinkKeySetInd(BaseCommand):
-    pass
 
 
 class SecurityModeGetReq(BaseCommand):
@@ -622,10 +498,6 @@ class SecurityModeGetRsp(BaseCommand):
     security_mode: SecurityMode
 
 
-class SecurityModeGetInd(BaseCommand):
-    pass
-
-
 class SecurityModeSetReq(BaseCommand):
     security_mode: SecurityMode
 
@@ -634,20 +506,16 @@ class SecurityModeSetRsp(BaseCommand):
     status: Status
 
 
-class SecurityModeSetInd(BaseCommand):
-    pass
-
-
 COMMAND_SCHEMAS = {
     CommandId.network_init: (
         NetworkInitReq,
         NetworkInitRsp,
-        NetworkInitInd,
+        None,
     ),
     CommandId.start: (
         StartReq,
         StartRsp,
-        StartInd,
+        None,
     ),
     CommandId.form_network: (
         FormNetworkReq,
@@ -667,72 +535,72 @@ COMMAND_SCHEMAS = {
     CommandId.extpanid_get: (
         ExtpanidGetReq,
         ExtpanidGetRsp,
-        ExtpanidGetInd,
+        None,
     ),
     CommandId.extpanid_set: (
         ExtpanidSetReq,
         ExtpanidSetRsp,
-        ExtpanidSetInd,
+        None,
     ),
     CommandId.panid_get: (
         PanidGetReq,
         PanidGetRsp,
-        PanidGetInd,
+        None,
     ),
     CommandId.panid_set: (
         PanidSetReq,
         PanidSetRsp,
-        PanidSetInd,
+        None,
     ),
     CommandId.short_addr_get: (
         ShortAddrGetReq,
         ShortAddrGetRsp,
-        ShortAddrGetInd,
+        None,
     ),
     CommandId.short_addr_set: (
         ShortAddrSetReq,
         ShortAddrSetRsp,
-        ShortAddrSetInd,
+        None,
     ),
     CommandId.long_addr_get: (
         LongAddrGetReq,
         LongAddrGetRsp,
-        LongAddrGetInd,
+        None,
     ),
     CommandId.long_addr_set: (
         LongAddrSetReq,
         LongAddrSetRsp,
-        LongAddrSetInd,
+        None,
     ),
     CommandId.current_channel_get: (
         CurrentChannelGetReq,
         CurrentChannelGetRsp,
-        CurrentChannelGetInd,
+        None,
     ),
     CommandId.current_channel_set: (
         CurrentChannelSetReq,
         CurrentChannelSetRsp,
-        CurrentChannelSetInd,
+        None,
     ),
     CommandId.primary_channel_mask_get: (
         PrimaryChannelMaskGetReq,
         PrimaryChannelMaskGetRsp,
-        PrimaryChannelMaskGetInd,
+        None,
     ),
     CommandId.primary_channel_mask_set: (
         PrimaryChannelMaskSetReq,
         PrimaryChannelMaskSetRsp,
-        PrimaryChannelMaskSetInd,
+        None,
     ),
     CommandId.add_endpoint: (
         AddEndpointReq,
         AddEndpointRsp,
-        AddEndpointInd,
+        None,
     ),
     CommandId.network_state: (
         NetworkStateReq,
         NetworkStateRsp,
-        NetworkStateInd,
+        None,
     ),
     CommandId.stack_status_handler: (
         StackStatusHandlerReq,
@@ -742,10 +610,10 @@ COMMAND_SCHEMAS = {
     CommandId.aps_data_request: (
         ApsDataRequestReq,
         ApsDataRequestRsp,
-        ApsDataRequestInd,
+        None,
     ),
     CommandId.aps_data_indication: (
-        ApsDataIndicationReq,
+        None,
         ApsDataIndicationRsp,
         ApsDataIndicationInd,
     ),
@@ -757,77 +625,77 @@ COMMAND_SCHEMAS = {
     CommandId.network_key_get: (
         NetworkKeyGetReq,
         NetworkKeyGetRsp,
-        NetworkKeyGetInd,
+        None,
     ),
     CommandId.network_key_set: (
         NetworkKeySetReq,
         NetworkKeySetRsp,
-        NetworkKeySetInd,
+        None,
     ),
     CommandId.nwk_frame_counter_get: (
         NwkFrameCounterGetReq,
         NwkFrameCounterGetRsp,
-        NwkFrameCounterGetInd,
+        None,
     ),
     CommandId.nwk_frame_counter_set: (
         NwkFrameCounterSetReq,
         NwkFrameCounterSetRsp,
-        NwkFrameCounterSetInd,
+        None,
     ),
     CommandId.network_role_get: (
         NetworkRoleGetReq,
         NetworkRoleGetRsp,
-        NetworkRoleGetInd,
+        None,
     ),
     CommandId.network_role_set: (
         NetworkRoleSetReq,
         NetworkRoleSetRsp,
-        NetworkRoleSetInd,
+        None,
     ),
     CommandId.use_predefined_nwk_panid_set: (
         UsePredefinedNwkPanidSetReq,
         UsePredefinedNwkPanidSetRsp,
-        UsePredefinedNwkPanidSetInd,
+        None,
     ),
     CommandId.nwk_update_id_get: (
         NwkUpdateIdGetReq,
         NwkUpdateIdGetRsp,
-        NwkUpdateIdGetInd,
+        None,
     ),
     CommandId.nwk_update_id_set: (
         NwkUpdateIdSetReq,
         NwkUpdateIdSetRsp,
-        NwkUpdateIdSetInd,
+        None,
     ),
     CommandId.trust_center_address_get: (
         TrustCenterAddressGetReq,
         TrustCenterAddressGetRsp,
-        TrustCenterAddressGetInd,
+        None,
     ),
     CommandId.trust_center_address_set: (
         TrustCenterAddressSetReq,
         TrustCenterAddressSetRsp,
-        TrustCenterAddressSetInd,
+        None,
     ),
     CommandId.link_key_get: (
         LinkKeyGetReq,
         LinkKeyGetRsp,
-        LinkKeyGetInd,
+        None,
     ),
     CommandId.link_key_set: (
         LinkKeySetReq,
         LinkKeySetRsp,
-        LinkKeySetInd,
+        None,
     ),
     CommandId.security_mode_get: (
         SecurityModeGetReq,
         SecurityModeGetRsp,
-        SecurityModeGetInd,
+        None,
     ),
     CommandId.security_mode_set: (
         SecurityModeSetReq,
         SecurityModeSetRsp,
-        SecurityModeSetInd,
+        None,
     ),
 }
 
