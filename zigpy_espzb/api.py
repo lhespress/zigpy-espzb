@@ -585,33 +585,23 @@ class Znsp:
             self._uart = None
 
     async def send_command(self, cmd, **kwargs):
-        payload = []
         tx_schema, _, _ = COMMAND_SCHEMAS[cmd]
-        trailing_optional = False
+
+        if tx_schema.keys() != kwargs.keys():
+            raise TypeError(
+                f"Command {cmd} with kwargs {kwargs} does not match schema:"
+                f" {list(tx_schema.keys())}"
+            )
+
+        payload = []
 
         for name, param_type in tx_schema.items():
             if isinstance(param_type, int):
-                if name not in kwargs:
-                    # Default value
-                    value = param_type.serialize()
-                else:
-                    value = type(param_type)(kwargs[name]).serialize()
-            elif kwargs.get(name) is None:
-                trailing_optional = True
-                value = None
+                value = type(param_type)(kwargs[name]).serialize()
             elif not isinstance(kwargs[name], param_type):
                 value = param_type(kwargs[name]).serialize()
             else:
                 value = kwargs[name].serialize()
-
-            if value is None:
-                continue
-
-            if trailing_optional:
-                raise ValueError(
-                    f"Command {cmd} with kwargs {kwargs}"
-                    f" has non-trailing optional argument"
-                )
 
             payload.append(value)
 
@@ -863,7 +853,7 @@ class Znsp:
         return rsp["ieee"]
 
     async def set_nwk_extended_panid(self, parameter: t.ExtendedPanId):
-        rsp = await self.send_command(CommandId.extpanid_set, panid=parameter)
+        rsp = await self.send_command(CommandId.extpanid_set, ieee=parameter)
 
         return rsp["status"]
 
