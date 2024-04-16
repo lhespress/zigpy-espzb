@@ -687,7 +687,11 @@ class Znsp:
             LOGGER.debug("Unparsed data remains after frame: %s, %s", command, rest)
 
         LOGGER.debug(
-            "Received command %s%s (seq %d)", command.command_id, params, command.seq
+            "Received %s %s%s (seq %d)",
+            ("indication" if command.frame_type == FrameType.Indicate else "response"),
+            command.command_id,
+            params,
+            command.seq,
         )
 
         status = Status.SUCCESS
