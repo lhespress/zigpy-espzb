@@ -20,7 +20,6 @@ import zigpy.endpoint
 import zigpy.exceptions
 from zigpy.exceptions import FormationFailure, NetworkNotFormed
 import zigpy.state
-import zigpy.types
 import zigpy.types as t
 import zigpy.util
 import zigpy.zdo.types as zdo_t
@@ -28,9 +27,10 @@ import zigpy.zdo.types as zdo_t
 from zigpy_espzb.api import Znsp
 from zigpy_espzb.types import (
     DeviceType,
+    ExtendedAddrMode,
     NetworkState,
     SecurityMode,
-    ZnspTransmitOptions,
+    TransmitOptions,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -108,8 +108,10 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         # TODO: add our registered endpoints manually so things don't crash. These
         # should be discovered automatically.
-        coordinator.add_endpoint(1)
-        coordinator.add_endpoint(2)
+        ep1 = coordinator.add_endpoint(1)
+        ep1.status = zigpy.endpoint.Status.ZDO_INIT
+        ep2 = coordinator.add_endpoint(2)
+        ep2.status = zigpy.endpoint.Status.ZDO_INIT
 
     async def _change_network_state(
         self,
@@ -147,7 +149,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await self._api.reset()
         await self._api.network_init()
         await self._api.form_network(role=DeviceType.COORDINATOR)
-        await self._api.start(autostart=False)
+        # await self._api.start(autostart=False)
 
         role = {
             zdo_t.LogicalType.Coordinator: DeviceType.COORDINATOR,
@@ -157,7 +159,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await self._api.set_network_role(role)
         await self._api.set_nwk_address(node_info.nwk)
 
-        if node_info.ieee != zigpy.types.EUI64.UNKNOWN:
+        if node_info.ieee != t.EUI64.UNKNOWN:
             await self._api.set_mac_address(node_info.ieee)
             node_ieee = node_info.ieee
         else:
@@ -178,7 +180,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         tc_link_key_partner_ieee = network_info.tc_link_key.partner_ieee
 
-        if tc_link_key_partner_ieee == zigpy.types.EUI64.UNKNOWN:
+        if tc_link_key_partner_ieee == t.EUI64.UNKNOWN:
             tc_link_key_partner_ieee = node_ieee
 
         await self._api.set_trust_center_address(tc_link_key_partner_ieee)
@@ -275,50 +277,62 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def send_packet(self, packet):
         LOGGER.debug("Sending packet: %r", packet)
 
-        force_relays = None
+        try:
+            device = self.get_device_with_address(packet.dst)
+        except (KeyError, ValueError):
+            device = None
 
-        dst_addr = packet.dst.address
-        addr_mode = packet.dst.addr_mode
-        if packet.dst.addr_mode != zigpy.types.AddrMode.IEEE:
-            dst_addr = t.EUI64(
-                [
-                    packet.dst.address % 0x100,
-                    packet.dst.address >> 8,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                ]
-            )
-        if packet.dst.addr_mode == zigpy.types.AddrMode.Broadcast:
-            addr_mode = zigpy.types.AddrMode.Group
+        if packet.dst.addr_mode == t.AddrMode.IEEE:
+            LOGGER.warning("IEEE addressing is not supported, falling back to NWK")
 
-        if packet.dst.addr_mode != zigpy.types.AddrMode.IEEE:
-            src_addr = t.EUI64(
-                [
-                    packet.dst.address % 0x100,
-                    packet.dst.address >> 8,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                ]
+            if device is None:
+                raise ValueError(f"Cannot find device with IEEE {packet.dst.address}")
+
+            packet = packet.replace(
+                dst=t.AddrModeAddress(addr_mode=t.AddrMode.NWK, address=device.nwk)
             )
 
-        if packet.source_route is not None:
-            force_relays = packet.source_route
+        assert packet.src.addr_mode == t.AddrMode.NWK
+        src_addr = t.EUI64(
+            [
+                packet.src.address % 0x100,
+                packet.src.address >> 8,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ]
+        )
 
-        tx_options = ZnspTransmitOptions.NONE
+        dst_addr_mode = {
+            t.AddrMode.NWK: ExtendedAddrMode.MODE_16_ENDP_PRESENT,
+            t.AddrMode.IEEE: ExtendedAddrMode.MODE_64_ENDP_PRESENT,
+            t.AddrMode.Group: ExtendedAddrMode.MODE_16_GROUP_ENDP_NOT_PRESENT,
+            t.AddrMode.Broadcast: ExtendedAddrMode.MODE_16_GROUP_ENDP_NOT_PRESENT,
+        }[packet.dst.addr_mode]
 
-        if zigpy.types.TransmitOptions.ACK in packet.tx_options:
-            tx_options |= ZnspTransmitOptions.ACK_ENABLED
+        dst_addr = t.EUI64(
+            [
+                packet.dst.address % 0x100,
+                packet.dst.address >> 8,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ]
+        )
 
-        if zigpy.types.TransmitOptions.APS_Encryption in packet.tx_options:
-            tx_options |= ZnspTransmitOptions.SECURITY_ENABLED
+        tx_options = TransmitOptions.NONE
+
+        if t.TransmitOptions.ACK in packet.tx_options:
+            tx_options |= TransmitOptions.ACK_TX
+
+        if t.TransmitOptions.APS_Encryption in packet.tx_options:
+            tx_options |= TransmitOptions.SECURITY_ENABLED
 
         async with self._limit_concurrency():
             await self._api.aps_data_request(
@@ -327,18 +341,18 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 src_addr=src_addr,
                 src_ep=packet.src_ep,
                 profile=packet.profile_id or 0,
-                addr_mode=addr_mode,
+                addr_mode=dst_addr_mode,
                 cluster=packet.cluster_id,
                 sequence=packet.tsn,
                 options=tx_options,
                 radius=packet.radius or 0,
                 data=packet.data.serialize(),
-                relays=force_relays,
-                extended_timeout=packet.extended_timeout,
             )
 
     async def permit_ncp(self, time_s=60):
         assert 0 <= time_s <= 254
+
+        await self._device.zdo.permit(time_s)
 
         # TODO: this does not work, the NCP responds again with:
         #   Unknown command received: Command(

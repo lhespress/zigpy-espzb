@@ -10,6 +10,7 @@ from zigpy_espzb.types import (
     SecurityMode,
     ShiftedChannels,
     Status,
+    TransmitOptions,
     TXStatus,
 )
 
@@ -304,13 +305,13 @@ class ApsDataRequestReq(BaseCommand):
     dst_addr: t.EUI64
     dst_endpoint: t.uint8_t
     src_endpoint: t.uint8_t
-    address_mode: t.uint8_t
+    address_mode: ExtendedAddrMode
     profile_id: t.uint16_t
     cluster_id: t.uint16_t
-    tx_options: t.uint8_t
+    tx_options: TransmitOptions
     use_alias: t.Bool
-    src_addr: t.EUI64
-    sequence: t.uint8_t
+    alias_src_addr: t.EUI64
+    alias_seq_num: t.uint8_t
     radius: t.uint8_t
     asdu_length: t.uint32_t
     asdu: Bytes
