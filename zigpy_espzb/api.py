@@ -33,8 +33,8 @@ from zigpy_espzb.types import (
     SecurityMode,
     ShiftedChannels,
     Status,
+    TransmitOptions,
     TXStatus,
-    ZnspTransmitOptions,
     addr_mode_with_eui64_to_addr_mode_address,
 )
 import zigpy_espzb.uart
@@ -198,12 +198,8 @@ class Znsp:
             command.seq,
         )
 
-        status = None
-
-        if hasattr(params, "status"):
-            status = params.status
-
         exc = None
+        status = getattr(params, "status", None)
 
         if status is not None and status != Status.SUCCESS:
             exc = CommandError(status, f"{command.command_id}, status: {status}")
@@ -216,7 +212,7 @@ class Znsp:
                     fut.set_exception(exc)
             except asyncio.InvalidStateError:
                 LOGGER.warning(
-                    "Duplicate or delayed response for 0x:%02x sequence",
+                    "Duplicate or delayed response for 0x%02x sequence",
                     command.seq,
                 )
 
@@ -294,7 +290,7 @@ class Znsp:
         )
 
     async def set_channel(self, channel: int) -> None:
-        await self.send_command(commands.CurrentChannelSetReq(channel=channel))
+        await self.set_channel_mask(channels=t.Channels.from_channel_list([channel]))
 
     async def form_network(
         self,
@@ -473,11 +469,9 @@ class Znsp:
         addr_mode: t.AddrMode,
         cluster: t.uint16_t,
         sequence: t.uint16_t,
-        options: ZnspTransmitOptions,
+        options: TransmitOptions,
         radius: t.uint16_t,
         data: bytes,
-        relays: list[int] | None = None,
-        extended_timeout: bool = False,
     ):
         for delay in REQUEST_RETRY_DELAYS:
             try:
@@ -491,11 +485,11 @@ class Znsp:
                         cluster_id=cluster,
                         tx_options=options,
                         use_alias=False,
-                        src_addr=src_addr,
-                        sequence=sequence,
+                        alias_src_addr=src_addr,
+                        alias_seq_num=sequence,
                         radius=radius,
                         asdu_length=len(data),
-                        asdu=t.List(data),
+                        asdu=data,
                     )
                 )
             except CommandError as ex:
