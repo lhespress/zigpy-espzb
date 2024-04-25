@@ -83,6 +83,7 @@ class Znsp:
         self._uart = await zigpy_espzb.uart.connect(self._config, self)
 
         # TODO: implement a firmware version command
+        self._firmware_version = await self.system_firmware()
         self._network_state = await self.get_network_state()
 
     def connection_lost(self, exc: Exception) -> None:
@@ -165,6 +166,9 @@ class Znsp:
 
         # We won't implement requests for now
         assert command.frame_type != FrameType.Request
+
+        if schema is None:
+            return
 
         fut = None
 
@@ -515,7 +519,7 @@ class Znsp:
 
         for attempt in range(5):
             try:
-                await self.form_network()
+                await self.send_command(commands.SystemResetReq())
             except asyncio.TimeoutError:
                 break
         else:
@@ -524,3 +528,34 @@ class Znsp:
         await asyncio.sleep(2)
 
         LOGGER.debug("Reset complete")
+
+    async def system_factory(self):
+
+        LOGGER.debug("Factory...")
+
+        for attempt in range(5):
+            try:
+                await self.send_command(commands.SystemFactoryReq())
+            except asyncio.TimeoutError:
+                break
+        else:
+            raise RuntimeError("Failed to trigger a factory/crash")
+
+        await asyncio.sleep(2)
+
+        LOGGER.debug("Factory complete")
+
+    async def system_firmware(self):
+        rsp = await self.send_command(commands.SystemFirmwareReq())
+
+        return rsp.firmware_version
+
+    async def system_model(self):
+        rsp = await self.send_command(commands.SystemModelReq())
+
+        return rsp.payload
+
+    async def system_manufacturer(self):
+        rsp = await self.send_command(commands.SystemManufacturerReq())
+
+        return rsp.payload

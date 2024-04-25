@@ -6,6 +6,7 @@ from zigpy_espzb.types import (
     Bytes,
     DeviceType,
     ExtendedAddrMode,
+    FirmwareVersion,
     NetworkState,
     SecurityMode,
     ShiftedChannels,
@@ -77,6 +78,11 @@ class CommandId(t.enum16):
     aps_data_request = 0x0300
     aps_data_indication = 0x0301
     aps_data_confirm = 0x0302
+    system_reset = 0x0400
+    system_factory = 0x0401
+    system_firmware = 0x0402
+    system_model = 0x0403
+    system_manufacturer = 0x0404
 
 
 class FrameType(t.enum4):
@@ -506,6 +512,35 @@ class SecurityModeSetReq(BaseCommand):
 class SecurityModeSetRsp(BaseCommand):
     status: Status
 
+class SystemResetReq(BaseCommand):
+    pass
+
+class SystemResetRsp(BaseCommand):
+    status: Status
+
+class SystemFactoryReq(BaseCommand):
+    pass
+
+class SystemFactoryRsp(BaseCommand):
+    status: Status
+
+class SystemFirmwareReq(BaseCommand):
+    pass
+
+class SystemFirmwareRsp(BaseCommand):
+    firmware_version: FirmwareVersion
+
+class SystemModelReq(BaseCommand):
+    pass
+
+class SystemModelRsp(BaseCommand):
+    payload: t.CharacterString
+
+class SystemManufacturerReq(BaseCommand):
+    pass
+
+class SystemManufacturerRsp(BaseCommand):
+    payload: t.CharacterString
 
 COMMAND_SCHEMAS = {
     CommandId.network_init: (
@@ -696,6 +731,31 @@ COMMAND_SCHEMAS = {
     CommandId.security_mode_set: (
         SecurityModeSetReq,
         SecurityModeSetRsp,
+        None,
+    ),
+    CommandId.system_reset: (
+        SystemResetReq,
+        SystemResetRsp,
+        None,
+    ),
+    CommandId.system_factory: (
+        SystemFactoryReq,
+        SystemFactoryRsp,
+        None,
+    ),
+    CommandId.system_firmware: (
+        SystemFirmwareReq,
+        SystemFirmwareRsp,
+        None,
+    ),
+    CommandId.system_model: (
+        SystemModelReq,
+        SystemModelRsp,
+        None,
+    ),
+    CommandId.system_manufacturer: (
+        SystemManufacturerReq,
+        SystemManufacturerRsp,
         None,
     ),
 }
