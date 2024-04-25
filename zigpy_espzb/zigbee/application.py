@@ -146,7 +146,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await self._api.leave_network()
 
     async def write_network_info(self, *, network_info, node_info):
-        await self._api.reset()
+        await self._api.system_factory()
         await self._api.network_init()
         await self._api.form_network(role=DeviceType.COORDINATOR)
         # await self._api.start(autostart=False)
@@ -216,8 +216,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         node_info.ieee = await self._api.get_mac_address()
 
         # TODO: implement firmware commands to read the board name, manufacturer
-        node_info.manufacturer = "Espressif Systems"
-        node_info.model = "ESP32H2"
+        node_info.manufacturer = await self._api.system_manufacturer()
+        node_info.model = await self._api.system_model()
 
         # TODO: implement firmware command to read out the firmware version and build ID
         node_info.version = f"{int(self._api.firmware_version):#010x}"
