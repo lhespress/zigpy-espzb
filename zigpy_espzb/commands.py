@@ -512,35 +512,46 @@ class SecurityModeSetReq(BaseCommand):
 class SecurityModeSetRsp(BaseCommand):
     status: Status
 
+
 class SystemResetReq(BaseCommand):
     pass
+
 
 class SystemResetRsp(BaseCommand):
     status: Status
 
+
 class SystemFactoryReq(BaseCommand):
     pass
+
 
 class SystemFactoryRsp(BaseCommand):
     status: Status
 
+
 class SystemFirmwareReq(BaseCommand):
     pass
+
 
 class SystemFirmwareRsp(BaseCommand):
     firmware_version: FirmwareVersion
 
+
 class SystemModelReq(BaseCommand):
     pass
+
 
 class SystemModelRsp(BaseCommand):
     payload: t.CharacterString
 
+
 class SystemManufacturerReq(BaseCommand):
     pass
 
+
 class SystemManufacturerRsp(BaseCommand):
     payload: t.CharacterString
+
 
 COMMAND_SCHEMAS = {
     CommandId.network_init: (
