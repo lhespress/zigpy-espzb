@@ -324,9 +324,6 @@ class Znsp:
         # TODO: wait for the `form_network` indication as well?
         await asyncio.sleep(2)
 
-    async def leave_network(self) -> None:
-        await self.send_command(commands.LeaveNetworkReq)
-
     async def start(self, autostart: bool) -> Status:
         await self.send_command(commands.StartReq(autostart=autostart))
 
@@ -532,7 +529,7 @@ class Znsp:
         await self.send_command(commands.SystemResetReq(), wait_for_response=False)
         await self._poll_until_running()
 
-    async def system_factory(self):
+    async def factory_reset(self):
         await self.send_command(commands.SystemFactoryReq(), wait_for_response=False)
         await self._poll_until_running()
 
