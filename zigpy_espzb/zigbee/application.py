@@ -143,10 +143,10 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             raise FormationFailure("Network formation refused.")
 
     async def reset_network_info(self):
-        await self._api.leave_network()
+        await self._api.factory_reset()
 
     async def write_network_info(self, *, network_info, node_info):
-        await self._api.system_factory()
+        await self._api.factory_reset()
         await self._api.network_init()
         await self._api.form_network(role=DeviceType.COORDINATOR)
         # await self._api.start(autostart=False)
@@ -202,6 +202,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await self._api.start(autostart=True)
 
     async def load_network_info(self, *, load_devices=False):
+        channel = await self._api.get_current_channel()
+
+        if not 11 <= channel <= 26:
+            raise NetworkNotFormed(f"Channel is invalid: {channel}")
+
         network_info = self.state.network_info
         node_info = self.state.node_info
 
