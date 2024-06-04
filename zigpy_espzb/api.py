@@ -41,6 +41,7 @@ import zigpy_espzb.uart
 
 LOGGER = logging.getLogger(__name__)
 
+POLL_UNTIL_RUNNING_TIMEOUT = 10
 COMMAND_TIMEOUT = 1.8
 PROBE_TIMEOUT = 2
 REQUEST_RETRY_DELAYS = (0.5, 1.0, 1.5, None)
@@ -108,7 +109,7 @@ class Znsp:
             self._uart.close()
             self._uart = None
 
-    async def send_command(self, command: t.Struct):
+    async def send_command(self, command: t.Struct, *, wait_for_response: bool = True):
         command_id = COMMAND_SCHEMA_TO_COMMAND_ID[type(command)]
         serialized_payload = command.serialize()
 
@@ -133,6 +134,10 @@ class Znsp:
             self._uart.send(command_frame.replace(seq=seq).serialize())
 
             self._seq = (self._seq % 255) + 1
+
+            if not wait_for_response:
+                LOGGER.debug("Not waiting for a response")
+                return
 
             fut = asyncio.Future()
             self._awaiting[seq][command_id].append(fut)
@@ -511,39 +516,25 @@ class Znsp:
 
         return rsp.network_state
 
+    async def _poll_until_running(self):
+        async with asyncio_timeout(POLL_UNTIL_RUNNING_TIMEOUT):
+            while True:
+                await asyncio.sleep(0.5)
+
+                try:
+                    LOGGER.debug("Polling firmware to see if it is running")
+                    await self.system_firmware()
+                    break
+                except asyncio.TimeoutError:
+                    pass
+
     async def reset(self) -> None:
-        # TODO: There is no reset command but we can trigger a crash if we form the
-        # network twice
-
-        LOGGER.debug("Resetting via crash...")
-
-        for attempt in range(5):
-            try:
-                await self.send_command(commands.SystemResetReq())
-            except asyncio.TimeoutError:
-                break
-        else:
-            raise RuntimeError("Failed to trigger a reset/crash")
-
-        await asyncio.sleep(2)
-
-        LOGGER.debug("Reset complete")
+        await self.send_command(commands.SystemResetReq(), wait_for_response=False)
+        await self._poll_until_running()
 
     async def system_factory(self):
-
-        LOGGER.debug("Factory...")
-
-        for attempt in range(5):
-            try:
-                await self.send_command(commands.SystemFactoryReq())
-            except asyncio.TimeoutError:
-                break
-        else:
-            raise RuntimeError("Failed to trigger a factory/crash")
-
-        await asyncio.sleep(2)
-
-        LOGGER.debug("Factory complete")
+        await self.send_command(commands.SystemFactoryReq(), wait_for_response=False)
+        await self._poll_until_running()
 
     async def system_firmware(self):
         rsp = await self.send_command(commands.SystemFirmwareReq())
