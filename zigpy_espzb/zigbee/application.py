@@ -75,7 +75,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         # TODO: Most commands fail if the network is not formed. Why?
         await api.network_init()
-        await api.form_network(role=DeviceType.COORDINATOR)
         await api.start(autostart=False)
 
         self._api = api
@@ -89,8 +88,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         raise NotImplementedError()
 
     async def start_network(self):
-        await self._api.start(autostart=True)
-
         await self.load_network_info(load_devices=False)
         await self.register_endpoints()
 
@@ -112,6 +109,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         ep1.status = zigpy.endpoint.Status.ZDO_INIT
         ep2 = coordinator.add_endpoint(2)
         ep2.status = zigpy.endpoint.Status.ZDO_INIT
+
+        await self._api.form_network(role=DeviceType.COORDINATOR)
 
     async def _change_network_state(
         self,
@@ -148,8 +147,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def write_network_info(self, *, network_info, node_info):
         await self._api.factory_reset()
         await self._api.network_init()
-        await self._api.form_network(role=DeviceType.COORDINATOR)
-        # await self._api.start(autostart=False)
+        await self._api.start(autostart=False)
 
         role = {
             zdo_t.LogicalType.Coordinator: DeviceType.COORDINATOR,
@@ -192,14 +190,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             await self._api.set_security_mode(SecurityMode.PRECONFIGURED_NETWORK_KEY)
 
         await self._api.set_channel(network_info.channel)
-
-        # TODO: Network settings do not persist. How do you write them?
-        await self._api.start(autostart=True)
-
-        await self._api.reset()
-        await self._api.network_init()
-        await self._api.form_network(role=DeviceType.COORDINATOR)
-        await self._api.start(autostart=True)
 
     async def load_network_info(self, *, load_devices=False):
         channel = await self._api.get_current_channel()

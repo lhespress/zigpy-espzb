@@ -520,6 +520,8 @@ class SystemResetReq(BaseCommand):
 class SystemResetRsp(BaseCommand):
     status: Status
 
+class SystemResetInd(BaseCommand):
+    error: t.uint32_t
 
 class SystemFactoryReq(BaseCommand):
     pass
@@ -528,6 +530,8 @@ class SystemFactoryReq(BaseCommand):
 class SystemFactoryRsp(BaseCommand):
     status: Status
 
+class SystemFactoryInd(BaseCommand):
+    error: t.uint32_t
 
 class SystemFirmwareReq(BaseCommand):
     pass
@@ -747,12 +751,12 @@ COMMAND_SCHEMAS = {
     CommandId.system_reset: (
         SystemResetReq,
         SystemResetRsp,
-        None,
+        SystemResetInd,
     ),
     CommandId.system_factory: (
         SystemFactoryReq,
         SystemFactoryRsp,
-        None,
+        SystemFactoryInd,
     ),
     CommandId.system_firmware: (
         SystemFirmwareReq,
