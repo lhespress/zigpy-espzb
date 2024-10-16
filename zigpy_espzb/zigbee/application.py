@@ -329,7 +329,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         if t.TransmitOptions.APS_Encryption in packet.tx_options:
             tx_options |= TransmitOptions.SECURITY_ENABLED
 
-        async with self._limit_concurrency():
+        async with self._limit_concurrency(priority=packet.priority):
             await self._api.aps_data_request(
                 dst_addr=dst_addr,
                 dst_ep=packet.dst_ep,
