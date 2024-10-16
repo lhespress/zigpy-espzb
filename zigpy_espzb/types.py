@@ -59,6 +59,8 @@ class ExtendedAddrMode(t.enum8):
             self.MODE_DST_ADDR_ENDP_NOT_PRESENT: t.AddrMode.NWK,
             self.MODE_16_GROUP_ENDP_NOT_PRESENT: t.AddrMode.Group,
             self.MODE_16_GROUP_ENDP_NOT_PRESENT: t.AddrMode.Broadcast,
+            # TODO: why is this necessary?
+            0xFF: t.AddrMode.NWK,
         }[self]
 
 
