@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 import zigpy.types as t
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Bytes(bytes):
@@ -53,15 +57,22 @@ class ExtendedAddrMode(t.enum8):
 
     def to_zigpy_addr_mode(self) -> t.AddrMode:
         """Convert a Zigpy AddrMode to an ExtendedAddrMode."""
-        return {
+        mode_map = {
             self.MODE_64_ENDP_PRESENT: t.AddrMode.IEEE,
             self.MODE_16_ENDP_PRESENT: t.AddrMode.NWK,
             self.MODE_DST_ADDR_ENDP_NOT_PRESENT: t.AddrMode.NWK,
             self.MODE_16_GROUP_ENDP_NOT_PRESENT: t.AddrMode.Group,
-            self.MODE_16_GROUP_ENDP_NOT_PRESENT: t.AddrMode.Broadcast,
             # TODO: why is this necessary?
             0xFF: t.AddrMode.NWK,
-        }[self]
+        }
+        # Handle unknown address modes by defaulting to NWK
+        if self not in mode_map:
+            LOGGER.warning(
+                "Unknown ExtendedAddrMode %r (value %d), defaulting to NWK",
+                self,
+                self.value if hasattr(self, "value") else self,
+            )
+        return mode_map.get(self, t.AddrMode.NWK)
 
 
 def addr_mode_with_eui64_to_addr_mode_address(
@@ -136,7 +147,7 @@ class Status(t.enum8):
     BUSY = 7
 
 
-class FirmwareVersion(t.Struct, t.uint32_t):
+class FirmwareVersion(t.IntStruct, t.uint32_t):
     reserved: t.uint8_t
     patch: t.uint8_t
     minor: t.uint8_t

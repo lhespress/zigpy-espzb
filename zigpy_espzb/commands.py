@@ -63,6 +63,9 @@ class CommandId(t.enum16):
     use_predefined_nwk_panid_set = 0x002B
     short_to_ieee = 0x002C
     ieee_to_short = 0x002D
+    energy_scan = 0x002E
+    network_update = 0x002F
+    persist_config = 0x0030
     add_endpoint = 0x0100
     remove_endpoint = 0x0101
     attribute_read = 0x0102
@@ -249,7 +252,8 @@ class CurrentChannelGetRsp(BaseCommand):
 
 
 class CurrentChannelSetReq(BaseCommand):
-    channel: t.uint8_t
+    # Device expects uint32_t channel mask, not uint8_t single channel
+    channel: t.uint32_t
 
 
 class CurrentChannelSetRsp(BaseCommand):
@@ -361,6 +365,52 @@ class ApsDataIndicationInd(BaseCommand):
     rx_time: t.uint32_t
     asdu_length: t.uint32_t
     asdu: Bytes
+
+
+class AttributeReadInd(BaseCommand):
+    """ZCL attribute read response indication (loopback from coordinator to itself).
+    
+    When the coordinator sends a ZCL Read Attributes request to itself,
+    the NCP responds with this indication containing the attribute values.
+    
+    Format:
+    - status: 1 byte - ZCL status
+    - header.fc: 1 byte - Frame control
+    - header.manuf_code: 2 bytes - Manufacturer code (LE)
+    - header.tsn: 1 byte - Transaction sequence number
+    - header.rssi: 1 byte - Signal strength
+    - src_address.addr_type: 1 byte - Address type
+    - src_address.u: 8 bytes - Address union
+    - dst_address: 2 bytes - Destination address (LE)
+    - src_endpoint: 1 byte - Source endpoint
+    - dst_endpoint: 1 byte - Destination endpoint  
+    - cluster: 2 bytes - Cluster ID (LE)
+    - profile: 2 bytes - Profile ID (LE)
+    - command.id: 1 byte - Command ID
+    - command.direction: 1 byte - Command direction
+    - command.is_common: 1 byte - Is common command
+    - variable_count: 1 byte - Number of attribute variables
+    - attribute data: variable
+    """
+    status: t.uint8_t           # ZCL status
+    frame_control: t.uint8_t    # Frame control
+    manuf_code: t.uint16_t      # Manufacturer code (LE)
+    tsn: t.uint8_t              # Transaction sequence number
+    rssi: t.uint8_t             # Signal strength
+    src_addr_type: t.uint8_t    # Source address type
+    src_addr: t.EUI64           # Source address union (8 bytes)
+    dst_addr: t.uint16_t        # Destination address (LE)
+    src_ep: t.uint8_t           # Source endpoint
+    dst_ep: t.uint8_t           # Destination endpoint
+    cluster_id: t.uint16_t      # Cluster ID (LE)
+    profile_id: t.uint16_t      # Profile ID (LE)
+    command_id: t.uint8_t       # Command ID
+    command_direction: t.uint8_t  # Command direction
+    command_is_common: t.uint8_t  # Is common command
+    variable_count: t.uint8_t   # Number of attribute variables (offset 26)
+    attribute_data: Bytes       # Attribute data (variable length)
+    # Each attribute (7 + value_size bytes):
+    #   status(1) + attr_id(2) + type(1) + size(2) + value(N) + extra(1)
 
 
 class ApsDataConfirmReq(BaseCommand):
@@ -557,6 +607,58 @@ class SystemManufacturerRsp(BaseCommand):
     payload: t.CharacterString
 
 
+class PersistConfigReq(BaseCommand):
+    """Persist network configuration to NVS.
+    
+    This command writes all network parameters that have been set via
+    set_xxx() commands to non-volatile storage (NVS). Parameters are
+    only written to memory until this command is called.
+    """
+    pass
+
+
+class PersistConfigRsp(BaseCommand):
+    status: Status
+
+
+class EnergyScanReq(BaseCommand):
+    channel_mask: t.uint32_t
+    duration: t.uint8_t
+
+
+class EnergyScanRsp(BaseCommand):
+    status: Status
+
+
+class EnergyScanInd(BaseCommand):
+    """Energy scan indication with results.
+    
+    Format appears to be:
+    - status: uint8 (scan status)
+    - channel_count: uint8 (number of channels scanned)
+    - energy_values: variable length array of uint8 (energy level 0-255 per channel)
+    """
+    status: t.uint8_t
+    channel_count: t.uint8_t
+    energy_values: Bytes  # Variable length array of energy values
+
+
+class NetworkUpdateReq(BaseCommand):
+    channel_mask: ShiftedChannels
+    duration: t.uint8_t
+    dst_addr: t.uint16_t
+    scan_count: t.uint8_t
+    nwk_update_id: t.uint8_t
+
+
+class NetworkUpdateRsp(BaseCommand):
+    status: Status
+
+
+class NetworkUpdateInd(BaseCommand):
+    """Notification for network update completion."""
+    status: Status
+
 COMMAND_SCHEMAS = {
     CommandId.network_init: (
         NetworkInitReq,
@@ -647,6 +749,11 @@ COMMAND_SCHEMAS = {
         AddEndpointReq,
         AddEndpointRsp,
         None,
+    ),
+    CommandId.attribute_read: (
+        None,
+        None,
+        AttributeReadInd,
     ),
     CommandId.network_state: (
         NetworkStateReq,
@@ -772,6 +879,21 @@ COMMAND_SCHEMAS = {
         SystemManufacturerReq,
         SystemManufacturerRsp,
         None,
+    ),
+    CommandId.persist_config: (
+        PersistConfigReq,
+        PersistConfigRsp,
+        None,
+    ),
+    CommandId.energy_scan: (
+        EnergyScanReq,
+        EnergyScanRsp,
+        EnergyScanInd,
+    ),
+    CommandId.network_update: (
+        NetworkUpdateReq,
+        NetworkUpdateRsp,
+        NetworkUpdateInd,
     ),
 }
 
